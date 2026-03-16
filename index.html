@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a237e">
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>New Fair Way Trading - POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -828,110 +829,149 @@ input[type=number]{-moz-appearance:textfield;}
 
 <script>
 // ═══════════════════════════════════════════════
-// DATABASE — IndexedDB
+// DATABASE — Supabase Cloud (syncs all devices)
 // ═══════════════════════════════════════════════
-const DB_NAME = 'FairwayDB';
-const DB_VER = 1;
-let db;
+const SUPABASE_URL = 'https://copwoaaquhlprzydpseh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvcHdvYWFxdWhscHJ6eWRwc2VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NjAyNzQsImV4cCI6MjA4OTIzNjI3NH0.9uFFf7ejGn6xb2U5tiKJXvMyu1XKIZXbubG7B8kWF2g';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VER);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      // Customers
-      if (!d.objectStoreNames.contains('customers')) {
-        const cs = d.createObjectStore('customers', { keyPath: 'customer_id', autoIncrement: true });
-        cs.createIndex('name', 'name');
-      }
-      // Products
-      if (!d.objectStoreNames.contains('products')) {
-        const ps = d.createObjectStore('products', { keyPath: 'product_id', autoIncrement: true });
-        ps.createIndex('category', 'category');
-      }
-      // Truck Inventory
-      if (!d.objectStoreNames.contains('inventory')) {
-        const inv = d.createObjectStore('inventory', { keyPath: 'inventory_id', autoIncrement: true });
-        inv.createIndex('product_id', 'product_id', { unique: true });
-      }
-      // Invoices
-      if (!d.objectStoreNames.contains('invoices')) {
-        const ins = d.createObjectStore('invoices', { keyPath: 'invoice_id', autoIncrement: true });
-        ins.createIndex('date', 'date');
-        ins.createIndex('customer_id', 'customer_id');
-      }
-      // Invoice Items
-      if (!d.objectStoreNames.contains('invoice_items')) {
-        const ii = d.createObjectStore('invoice_items', { keyPath: 'item_id', autoIncrement: true });
-        ii.createIndex('invoice_id', 'invoice_id');
-      }
-      // Expenses
-      if (!d.objectStoreNames.contains('expenses')) {
-        const ex = d.createObjectStore('expenses', { keyPath: 'expense_id', autoIncrement: true });
-        ex.createIndex('date', 'date');
-      }
-      // Credit Payments
-      if (!d.objectStoreNames.contains('credit_payments')) {
-        const cp = d.createObjectStore('credit_payments', { keyPath: 'payment_id', autoIncrement: true });
-        cp.createIndex('customer_id', 'customer_id');
-      }
-      // Settings
-      if (!d.objectStoreNames.contains('settings')) {
-        d.createObjectStore('settings', { keyPath: 'key' });
-      }
-    };
-    req.onsuccess = e => { db = e.target.result; resolve(db); };
-    req.onerror = e => reject(e.target.error);
-  });
+// ── Offline queue for when internet is down ──
+let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+let isOnline = navigator.onLine;
+window.addEventListener('online', () => { isOnline = true; processOfflineQueue(); });
+window.addEventListener('offline', () => { isOnline = false; });
+
+async function processOfflineQueue() {
+  if (!offlineQueue.length) return;
+  showToast('🔄 Syncing offline data...');
+  const queue = [...offlineQueue];
+  offlineQueue = [];
+  localStorage.setItem('offlineQueue', '[]');
+  for (const op of queue) {
+    try {
+      if (op.type === 'insert') await sb.from(op.table).insert(op.data);
+      if (op.type === 'update') await sb.from(op.table).update(op.data).eq(op.pk, op.id);
+      if (op.type === 'delete') await sb.from(op.table).delete().eq(op.pk, op.id);
+    } catch(e) { console.error('Sync error:', e); }
+  }
+  showToast('✅ All data synced!');
 }
 
-function dbGet(store, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).get(key);
-    req.onsuccess = () => res(req.result);
-    req.onerror = e => rej(e);
-  });
+// ── Local cache for offline use ──
+const localCache = {};
+
+async function dbGetAll(table) {
+  try {
+    if (isOnline) {
+      const { data, error } = await sb.from(table).select('*').order(getPK(table), { ascending: true });
+      if (!error && data) { localCache[table] = data; return data; }
+    }
+  } catch(e) {}
+  return localCache[table] || [];
 }
-function dbGetAll(store) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).getAll();
-    req.onsuccess = () => res(req.result);
-    req.onerror = e => rej(e);
-  });
+
+async function dbGet(table, id) {
+  const pk = getPK(table);
+  try {
+    if (isOnline) {
+      const { data } = await sb.from(table).select('*').eq(pk, id).single();
+      return data;
+    }
+  } catch(e) {}
+  return (localCache[table] || []).find(r => r[pk] == id) || null;
 }
-function dbGetByIndex(store, indexName, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readonly');
-    const req = tx.objectStore(store).index(indexName).getAll(key);
-    req.onsuccess = () => res(req.result);
-    req.onerror = e => rej(e);
-  });
+
+async function dbGetByIndex(table, col, val) {
+  try {
+    if (isOnline) {
+      const { data } = await sb.from(table).select('*').eq(col, val);
+      return data || [];
+    }
+  } catch(e) {}
+  return (localCache[table] || []).filter(r => r[col] == val);
 }
-function dbPut(store, data) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).put(data);
-    req.onsuccess = () => res(req.result);
-    req.onerror = e => rej(e);
-  });
+
+async function dbAdd(table, data) {
+  const pk = getPK(table);
+  try {
+    if (isOnline) {
+      const { data: res, error } = await sb.from(table).insert(data).select().single();
+      if (!error && res) {
+        if (!localCache[table]) localCache[table] = [];
+        localCache[table].push(res);
+        return res[pk];
+      }
+    }
+  } catch(e) {}
+  // Offline — queue it
+  const tempId = Date.now();
+  const tempData = { ...data, [pk]: tempId };
+  if (!localCache[table]) localCache[table] = [];
+  localCache[table].push(tempData);
+  offlineQueue.push({ type: 'insert', table, data });
+  localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+  return tempId;
 }
-function dbAdd(store, data) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).add(data);
-    req.onsuccess = () => res(req.result);
-    req.onerror = e => rej(e);
-  });
+
+async function dbPut(table, data) {
+  const pk = getPK(table);
+  const id = data[pk];
+  try {
+    if (isOnline) {
+      const dataToSend = { ...data };
+      delete dataToSend[pk];
+      await sb.from(table).upsert(data);
+      if (localCache[table]) {
+        const idx = localCache[table].findIndex(r => r[pk] == id);
+        if (idx >= 0) localCache[table][idx] = data;
+        else localCache[table].push(data);
+      }
+      return id;
+    }
+  } catch(e) {}
+  // Offline
+  if (!localCache[table]) localCache[table] = [];
+  const idx = localCache[table].findIndex(r => r[pk] == id);
+  if (idx >= 0) localCache[table][idx] = data;
+  else localCache[table].push(data);
+  offlineQueue.push({ type: 'update', table, data, pk, id });
+  localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+  return id;
 }
-function dbDelete(store, key) {
-  return new Promise((res, rej) => {
-    const tx = db.transaction(store, 'readwrite');
-    const req = tx.objectStore(store).delete(key);
-    req.onsuccess = () => res();
-    req.onerror = e => rej(e);
-  });
+
+async function dbDelete(table, id) {
+  const pk = getPK(table);
+  try {
+    if (isOnline) {
+      await sb.from(table).delete().eq(pk, id);
+    } else {
+      offlineQueue.push({ type: 'delete', table, pk, id });
+      localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+    }
+  } catch(e) {}
+  if (localCache[table]) {
+    localCache[table] = localCache[table].filter(r => r[pk] != id);
+  }
+}
+
+function getPK(table) {
+  const pks = {
+    customers: 'customer_id', products: 'product_id', inventory: 'inventory_id',
+    invoices: 'invoice_id', invoice_items: 'item_id', expenses: 'expense_id',
+    credit_payments: 'payment_id', settings: 'key'
+  };
+  return pks[table] || 'id';
+}
+
+async function initDB() {
+  // Pre-load all tables into cache
+  const tables = ['customers','products','inventory','invoices','invoice_items','expenses','credit_payments','settings'];
+  for (const t of tables) {
+    try {
+      await dbGetAll(t);
+    } catch(e) {}
+  }
+  return true;
 }
 
 // ═══════════════════════════════════════════════
@@ -2134,9 +2174,12 @@ async function exportData() {
 
 function confirmResetData() {
   if (prompt('Type DELETE to confirm reset all data:') === 'DELETE') {
-    indexedDB.deleteDatabase(DB_NAME);
-    showToast('🗑️ Data reset. Reloading...');
-    setTimeout(() => location.reload(), 1500);
+    const tables = ['invoice_items','invoices','inventory','expenses','credit_payments','customers','products','settings'];
+    Promise.all(tables.map(t => sb.from(t).delete().neq(getPK(t), -1))).then(() => {
+      Object.keys(localCache).forEach(k => delete localCache[k]);
+      showToast('🗑️ Data reset. Reloading...');
+      setTimeout(() => location.reload(), 1500);
+    });
   }
 }
 
@@ -2245,7 +2288,6 @@ function pinForgot() {
 // ═══════════════════════════════════════════════
 async function init() {
   try {
-    // Show loading, hide PIN while DB initializes
     document.getElementById('pin-screen').classList.add('hidden');
     document.getElementById('loading').style.display = 'flex';
     await initDB();
@@ -2254,16 +2296,29 @@ async function init() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(()=>{});
     }
-    // DB ready — hide loading, show PIN
     document.getElementById('loading').style.display = 'none';
     document.getElementById('pin-screen').classList.remove('hidden');
     document.getElementById('pin-input').focus();
     pinReady = true;
+    // Show online/offline status
+    updateOnlineStatus();
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
   } catch (e) {
     console.error('Init error:', e);
     document.getElementById('loading').style.display = 'flex';
-    document.getElementById('loading').innerHTML = '<div style="color:#ff6b6b;font-size:1rem;padding:20px;text-align:center;">⚠️ Error loading app.<br>Please refresh the page.</div>';
+    document.getElementById('loading').innerHTML = '<div style="color:#ff6b6b;font-size:1rem;padding:20px;text-align:center;">⚠️ Error loading app.<br>Please check internet and refresh.</div>';
   }
+}
+
+function updateOnlineStatus() {
+  const existing = document.getElementById('online-badge');
+  if (existing) existing.remove();
+  const badge = document.createElement('div');
+  badge.id = 'online-badge';
+  badge.style.cssText = `position:fixed;top:8px;right:8px;z-index:99998;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:700;${navigator.onLine ? 'background:#2e7d32;color:#fff;' : 'background:#c62828;color:#fff;'}`;
+  badge.textContent = navigator.onLine ? '🟢 Online' : '🔴 Offline';
+  document.body.appendChild(badge);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
