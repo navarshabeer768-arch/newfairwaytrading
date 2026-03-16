@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a237e">
+<link rel="manifest" href="manifest.json">
+<title>New Fair Way Trading - POS</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a237e;
+  --navy-dark: #0d1547;
+  --navy-light: #283593;
+  --gold: #f9a825;
+  --gold-light: #fdd835;
+  --red: #c62828;
+  --green: #2e7d32;
+  --green-light: #43a047;
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface2: #f8f9ff;
+  --border: #dde1f0;
+  --text: #1a1a2e;
+  --text2: #5c6078;
+  --shadow: 0 2px 12px rgba(26,35,126,0.12);
+  --shadow-lg: 0 8px 32px rgba(26,35,126,0.18);
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Barlow Condensed',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+/* ── SCREENS ── */
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+/* ── TOP NAV ── */
+.topbar{background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-lg);}
+.topbar-title{flex:1;font-size:1.2rem;font-weight:700;letter-spacing:.5px;}
+.topbar-sub{font-size:.75rem;opacity:.75;font-weight:400;}
+.btn-back{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;}
+.btn-icon{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;}
+/* ── HOME ── */
+#home-screen{background:linear-gradient(160deg,var(--navy-dark) 0%,var(--navy) 50%,var(--navy-light) 100%);}
+.home-header{padding:30px 20px 20px;text-align:center;color:#fff;}
+.home-logo{width:72px;height:72px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:2rem;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.home-company{font-size:1.6rem;font-weight:900;letter-spacing:1px;line-height:1.1;}
+.home-sub{font-size:.85rem;opacity:.75;margin-top:4px;font-family:'Cairo',sans-serif;}
+.home-date{font-size:.85rem;opacity:.6;margin-top:8px;}
+.home-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:0 16px 16px;}
+.sum-card{background:rgba(255,255,255,.12);border-radius:10px;padding:10px 8px;text-align:center;color:#fff;border:1px solid rgba(255,255,255,.15);}
+.sum-val{font-size:1.1rem;font-weight:800;}
+.sum-lbl{font-size:.65rem;opacity:.75;margin-top:2px;}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 24px;}
+.home-btn{background:var(--surface);border-radius:var(--radius-lg);padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;box-shadow:var(--shadow);transition:transform .1s,box-shadow .1s;text-decoration:none;}
+.home-btn:active{transform:scale(.97);box-shadow:0 2px 8px rgba(26,35,126,.1);}
+.home-btn-icon{font-size:2rem;}
+.home-btn-label{font-size:1rem;font-weight:700;color:var(--navy);letter-spacing:.3px;}
+.home-btn-sub{font-size:.7rem;color:var(--text2);font-weight:400;}
+.home-btn.highlight{background:var(--gold);box-shadow:0 4px 20px rgba(249,168,37,.4);}
+.home-btn.highlight .home-btn-label{color:var(--navy-dark);}
+.home-btn.highlight .home-btn-sub{color:var(--navy);}
+/* ── CONTENT ── */
+.content{flex:1;padding:16px;overflow-y:auto;}
+.section-title{font-size:1rem;font-weight:700;color:var(--navy);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--border);}
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px;}
+.card-title{font-size:.9rem;font-weight:700;color:var(--navy);margin-bottom:10px;}
+/* ── FORMS ── */
+.form-group{margin-bottom:14px;}
+.form-label{font-size:.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block;}
+.form-input,.form-select,.form-textarea{width:100%;padding:12px 14px;border:2px solid var(--border);border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;color:var(--text);background:var(--surface);transition:border-color .2s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--navy);}
+.form-textarea{min-height:80px;resize:vertical;}
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:13px 20px;border-radius:10px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;border:none;cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+.btn-primary{background:var(--navy);color:#fff;}
+.btn-primary:active{background:var(--navy-dark);}
+.btn-success{background:var(--green);color:#fff;}
+.btn-success:active{background:#1b5e20;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:active{background:#7f0000;}
+.btn-warning{background:var(--gold);color:var(--navy-dark);}
+.btn-outline{background:transparent;color:var(--navy);border:2px solid var(--navy);}
+.btn-sm{padding:8px 14px;font-size:.85rem;}
+.btn-lg{padding:16px 24px;font-size:1.15rem;border-radius:14px;}
+.btn-block{width:100%;}
+.btn-row{display:flex;gap:8px;margin-top:8px;}
+/* ── POS ── */
+.pos-layout{display:flex;flex-direction:column;height:calc(100vh - 56px);}
+.pos-top{flex:1;overflow-y:auto;padding:12px;}
+.pos-bottom{background:var(--surface);border-top:2px solid var(--border);padding:12px;}
+.product-search{position:relative;margin-bottom:12px;}
+.product-search input{padding-left:42px;}
+.product-search .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:1.1rem;}
+.product-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+.product-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:0;text-align:center;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.product-card:active{transform:scale(.97);}
+.product-card.selected{border-color:var(--navy);background:var(--surface2);}
+.product-card.low-stock{border-color:var(--gold);}
+.product-card.out-stock{border-color:var(--red);opacity:.6;}
+.product-card-img{width:100%;height:90px;object-fit:cover;display:block;background:var(--surface2);}
+.product-card-img-placeholder{width:100%;height:90px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:linear-gradient(135deg,var(--surface2),var(--border));}
+.product-card-body{padding:8px 6px 10px;}
+.product-name{font-size:.82rem;font-weight:700;color:var(--text);line-height:1.2;}
+.product-price{font-size:1rem;font-weight:800;color:var(--navy);margin-top:3px;}
+.product-stock{font-size:.68rem;color:var(--text2);margin-top:2px;}
+.product-badge{position:absolute;top:4px;right:4px;background:var(--gold);color:var(--navy-dark);font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px;}
+/* Photo upload */
+.photo-upload-area{border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:var(--surface2);transition:border-color .2s;position:relative;}
+.photo-upload-area:hover{border-color:var(--navy);}
+.photo-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.photo-preview{width:100%;height:140px;object-fit:cover;border-radius:10px;display:block;margin-bottom:8px;}
+.photo-preview-wrap{position:relative;margin-bottom:8px;}
+.photo-remove-btn{position:absolute;top:6px;right:6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+/* Inventory photo */
+.inv-photo{width:52px;height:52px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+.inv-photo-placeholder{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--surface2),var(--border));display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0;}
+.cart-items{margin-bottom:12px;}
+.cart-item{display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:10px;margin-bottom:6px;border:1px solid var(--border);}
+.cart-item-name{flex:1;font-size:.9rem;font-weight:600;}
+.cart-item-price{font-size:.8rem;color:var(--text2);}
+.qty-ctrl{display:flex;align-items:center;gap:6px;}
+.qty-btn{width:28px;height:28px;border-radius:50%;border:2px solid var(--navy);background:transparent;color:var(--navy);font-weight:700;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.qty-btn:active{background:var(--navy);color:#fff;}
+.qty-val{font-size:.95rem;font-weight:700;min-width:24px;text-align:center;}
+.cart-item-total{font-size:.95rem;font-weight:800;color:var(--navy);min-width:52px;text-align:right;}
+.cart-item-del{background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px;}
+.cart-summary{background:var(--surface2);border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid var(--border);}
+.summary-row{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:4px;}
+.summary-row.total{font-size:1.1rem;font-weight:800;color:var(--navy);border-top:2px solid var(--border);padding-top:6px;margin-top:4px;}
+.payment-tabs{display:flex;gap:0;border-radius:10px;overflow:hidden;border:2px solid var(--border);margin-bottom:12px;}
+.pay-tab{flex:1;padding:10px;text-align:center;font-weight:700;font-size:.9rem;cursor:pointer;background:var(--surface);border:none;color:var(--text2);transition:all .2s;}
+.pay-tab.active{background:var(--navy);color:#fff;}
+/* ── TABLES ── */
+.data-table{width:100%;border-collapse:collapse;font-size:.85rem;}
+.data-table th{background:var(--navy);color:#fff;padding:8px 10px;text-align:left;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.3px;}
+.data-table td{padding:10px;border-bottom:1px solid var(--border);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:nth-child(even) td{background:var(--surface2);}
+.table-wrap{border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);overflow-x:auto;}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:.72rem;font-weight:700;}
+.badge-green{background:#e8f5e9;color:var(--green);}
+.badge-red{background:#ffebee;color:var(--red);}
+.badge-gold{background:#fffde7;color:#f57f17;}
+.badge-navy{background:#e8eaf6;color:var(--navy);}
+/* ── MODALS ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:flex-end;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease;}
+.modal-title{font-size:1.15rem;font-weight:800;color:var(--navy);margin-bottom:16px;text-align:center;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+/* ── REPORTS ── */
+.report-tabs{display:flex;gap:6px;padding:0 0 12px;overflow-x:auto;scrollbar-width:none;}
+.report-tabs::-webkit-scrollbar{display:none;}
+.report-tab{padding:7px 14px;border-radius:20px;font-weight:700;font-size:.8rem;white-space:nowrap;border:2px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;}
+.report-tab.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);text-align:center;}
+.stat-val{font-size:1.4rem;font-weight:900;color:var(--navy);}
+.stat-lbl{font-size:.72rem;color:var(--text2);margin-top:2px;}
+.stat-card.green .stat-val{color:var(--green);}
+.stat-card.red .stat-val{color:var(--red);}
+.stat-card.gold .stat-val{color:#e65100;}
+/* ── INVENTORY ── */
+.inv-card{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;}
+.inv-icon{font-size:1.8rem;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.inv-info{flex:1;}
+.inv-name{font-size:.95rem;font-weight:700;}
+.inv-detail{font-size:.75rem;color:var(--text2);}
+.inv-qty{font-size:1.3rem;font-weight:900;color:var(--navy);}
+.inv-qty.low{color:var(--gold);}
+.inv-qty.out{color:var(--red);}
+/* ── CUSTOMER ── */
+.cust-card{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:8px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid var(--border);transition:border-color .2s;}
+.cust-card.has-credit{border-left-color:var(--gold);}
+.cust-card.no-credit{border-left-color:var(--green);}
+.cust-name{font-size:1rem;font-weight:700;}
+.cust-info{font-size:.78rem;color:var(--text2);margin-top:3px;}
+.cust-credit{font-size:.9rem;font-weight:700;}
+.cust-credit.positive{color:var(--red);}
+.cust-credit.zero{color:var(--green);}
+/* ── FAB ── */
+.fab{position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;font-size:1.6rem;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(26,35,126,.4);display:flex;align-items:center;justify-content:center;z-index:200;}
+.fab:active{transform:scale(.95);}
+/* ── BOTTOM NAV ── */
+.bottom-nav{background:var(--surface);border-top:1px solid var(--border);display:flex;position:fixed;bottom:0;left:0;right:0;z-index:50;box-shadow:0 -2px 12px rgba(0,0,0,.08);}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;color:var(--text2);border:none;background:none;}
+.bnav-item.active{color:var(--navy);}
+.bnav-icon{font-size:1.3rem;}
+.bnav-label{font-size:.62rem;font-weight:700;margin-top:2px;letter-spacing:.3px;}
+/* ── PRINT STYLES ── */
+@media print {
+  body *{visibility:hidden;}
+  #print-area,#print-area *{visibility:visible;}
+  #print-area{position:fixed;inset:0;background:#fff;z-index:9999;padding:0;}
+  @page{margin:8mm;size:A4;}
+}
+/* ── PRINT TEMPLATE A4 ── */
+#print-area{display:none;}
+.a4-invoice{font-family:'Cairo',Arial,sans-serif;width:100%;max-width:794px;margin:0 auto;border:2px solid #1a237e;padding:0;}
+.a4-header{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;padding:12px 16px;border-bottom:2px solid #1a237e;}
+.a4-header-left{font-size:11px;}
+.a4-header-right{font-size:11px;text-align:right;direction:rtl;}
+.a4-logo-wrap{text-align:center;}
+.a4-logo-circle{width:64px;height:64px;border:2px solid #1a237e;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:1.8rem;}
+.a4-company-en{font-size:18px;font-weight:900;color:#1a237e;white-space:nowrap;}
+.a4-company-ar{font-size:16px;font-weight:900;color:#1a237e;direction:rtl;text-align:right;}
+.a4-contact-row{display:flex;align-items:center;gap:4px;margin-bottom:3px;}
+.a4-contact-row .icon{font-size:10px;}
+.a4-inv-title{text-align:center;padding:8px;border-bottom:2px solid #1a237e;background:#f0f4ff;}
+.a4-inv-title-ar{font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;color:#1a237e;direction:rtl;}
+.a4-inv-title-en{font-size:14px;font-weight:800;color:#1a237e;letter-spacing:1px;}
+.a4-meta{display:flex;justify-content:space-between;padding:8px 16px;font-size:12px;border-bottom:1px solid #ccc;}
+.a4-customer{padding:8px 16px;font-size:12px;border-bottom:1px solid #ccc;display:flex;justify-content:space-between;}
+.a4-table{width:100%;border-collapse:collapse;font-size:11px;}
+.a4-table th{background:#1a237e;color:#fff;padding:6px 8px;text-align:center;border:1px solid #1a237e;}
+.a4-table td{padding:5px 8px;border:1px solid #ccc;text-align:center;}
+.a4-table .desc-col{text-align:left;}
+.a4-total-row{background:#f0f4ff;font-weight:800;}
+.a4-footer{display:flex;justify-content:space-between;padding:16px;font-size:11px;font-weight:700;border-top:2px solid #1a237e;margin-top:auto;}
+/* ── THERMAL RECEIPT ── */
+.thermal-receipt{font-family:'Courier New',monospace;width:280px;margin:0 auto;font-size:11px;background:#fff;padding:10px;}
+.thermal-logo{text-align:center;font-weight:900;font-size:13px;}
+.thermal-divider{border:none;border-top:1px dashed #000;margin:6px 0;}
+.thermal-row{display:flex;justify-content:space-between;margin:2px 0;}
+.thermal-center{text-align:center;}
+.thermal-total{font-weight:900;font-size:13px;}
+/* ── ALERTS ── */
+.alert{padding:12px 14px;border-radius:10px;margin-bottom:10px;font-size:.88rem;font-weight:600;}
+.alert-warning{background:#fff8e1;color:#e65100;border:1px solid #ffe082;}
+.alert-success{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;}
+.alert-info{background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9;}
+/* ── MISC ── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text2);}
+.empty-state-icon{font-size:3rem;margin-bottom:12px;}
+.empty-state-text{font-size:1rem;font-weight:600;}
+.empty-state-sub{font-size:.8rem;margin-top:6px;}
+.chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:700;background:var(--surface2);color:var(--navy);border:1px solid var(--border);cursor:pointer;margin:3px;}
+.chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.divider{height:1px;background:var(--border);margin:14px 0;}
+.text-right{text-align:right;}
+.text-center{text-align:center;}
+.fw-800{font-weight:800;}
+.color-navy{color:var(--navy);}
+.color-green{color:var(--green);}
+.color-red{color:var(--red);}
+.color-gold{color:#e65100;}
+.mt-8{margin-top:8px;}
+.mt-12{margin-top:12px;}
+.pb-80{padding-bottom:80px;}
+.flex{display:flex;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;}
+.gap-8{gap:8px;}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+input[type=number]{-moz-appearance:textfield;}
+
+/* Animate screens */
+.screen.active{animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:.6}to{opacity:1}}
+
+/* Loading */
+#loading{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;}
+#loading .logo{font-size:3rem;margin-bottom:16px;}
+#loading h1{font-size:1.6rem;font-weight:900;letter-spacing:1px;}
+#loading p{font-size:.9rem;opacity:.75;margin-top:8px;font-family:'Cairo',sans-serif;}
+#loading .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-top:24px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PIN LOCK SCREEN ── */
+#pin-screen{position:fixed;inset:0;background:linear-gradient(160deg,var(--navy-dark) 0%,var(--navy) 60%,var(--navy-light) 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;padding:32px 24px;}
+#pin-screen.hidden{display:none;}
+.pin-logo{width:80px;height:80px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.3);}
+.pin-company{font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:1px;text-align:center;line-height:1.2;}
+.pin-company-ar{font-family:'Cairo',sans-serif;font-size:1rem;color:rgba(255,255,255,.7);margin-top:4px;text-align:center;}
+.pin-title{font-size:.9rem;color:rgba(255,255,255,.75);margin:28px 0 16px;letter-spacing:1px;text-transform:uppercase;text-align:center;}
+.pin-input-wrap{position:relative;width:100%;max-width:280px;margin-bottom:16px;}
+.pin-input{width:100%;padding:18px 20px;font-size:2rem;font-weight:900;letter-spacing:12px;text-align:center;border:3px solid rgba(255,255,255,.4);border-radius:16px;background:rgba(255,255,255,.1);color:#fff;outline:none;-webkit-appearance:none;caret-color:transparent;}
+.pin-input::placeholder{letter-spacing:8px;font-size:1.5rem;opacity:.5;color:#fff;}
+.pin-input:focus{border-color:#fff;background:rgba(255,255,255,.2);}
+.pin-submit{width:100%;max-width:280px;padding:16px;background:#fff;color:var(--navy);font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:900;border:none;border-radius:16px;cursor:pointer;letter-spacing:1px;margin-bottom:12px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.pin-submit:active{opacity:.85;}
+.pin-error-msg{color:#ff6b6b;font-size:.9rem;font-weight:700;min-height:24px;text-align:center;}
+.pin-forgot{color:rgba(255,255,255,.5);font-size:.8rem;margin-top:16px;cursor:pointer;text-decoration:underline;background:none;border:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+</style>
+</head>
+<body>
+
+<!-- PIN LOCK SCREEN -->
+<div id="pin-screen">
+  <div class="pin-logo">🏪</div>
+  <div class="pin-company">NEW FAIR WAY TRADING</div>
+  <div class="pin-company-ar">نيو فيرفي تريدينغ</div>
+  <div class="pin-title">🔐 Enter your 4-digit PIN</div>
+  <div class="pin-input-wrap">
+    <input
+      class="pin-input"
+      id="pin-input"
+      type="password"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      maxlength="4"
+      placeholder="••••"
+      autocomplete="off"
+      oninput="onPinInput(this)"
+    >
+  </div>
+  <button class="pin-submit" onclick="submitPin()">🔓 UNLOCK</button>
+  <div class="pin-error-msg" id="pin-error"></div>
+  <button class="pin-forgot" onclick="pinForgot()">Forgot PIN?</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="logo">🏪</div>
+  <h1>NEW FAIR WAY TRADING</h1>
+  <p>نيو فيرفي تريدينغ</p>
+  <div class="spinner"></div>
+</div>
+
+<!-- HOME SCREEN -->
+<div id="home-screen" class="screen">
+  <div class="home-header">
+    <div class="home-logo">🏪</div>
+    <div class="home-company">NEW FAIR WAY TRADING</div>
+    <div class="home-sub">نيو فيرفي تريدينغ — Doha, Qatar</div>
+    <div class="home-date" id="home-date"></div>
+  </div>
+  <div class="home-summary">
+    <div class="sum-card">
+      <div class="sum-val" id="hs-sales">QR 0</div>
+      <div class="sum-lbl">Today Sales</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-val" id="hs-invoices">0</div>
+      <div class="sum-lbl">Invoices</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-val" id="hs-profit">QR 0</div>
+      <div class="sum-lbl">Profit</div>
+    </div>
+  </div>
+  <div class="home-grid">
+    <button class="home-btn highlight" onclick="showScreen('pos-screen')">
+      <div class="home-btn-icon">🛒</div>
+      <div class="home-btn-label">NEW SALE</div>
+      <div class="home-btn-sub">Create Invoice</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('inventory-screen')">
+      <div class="home-btn-icon">📦</div>
+      <div class="home-btn-label">INVENTORY</div>
+      <div class="home-btn-sub">Truck Stock</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('customers-screen')">
+      <div class="home-btn-icon">👥</div>
+      <div class="home-btn-label">CUSTOMERS</div>
+      <div class="home-btn-sub">Manage Clients</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('invoices-screen')">
+      <div class="home-btn-icon">🧾</div>
+      <div class="home-btn-label">INVOICES</div>
+      <div class="home-btn-sub">Sales History</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('reports-screen')">
+      <div class="home-btn-icon">📊</div>
+      <div class="home-btn-label">REPORTS</div>
+      <div class="home-btn-sub">P&L / Analytics</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('expenses-screen')">
+      <div class="home-btn-icon">💸</div>
+      <div class="home-btn-label">EXPENSES</div>
+      <div class="home-btn-sub">Track Costs</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('products-screen')">
+      <div class="home-btn-icon">🍿</div>
+      <div class="home-btn-label">PRODUCTS</div>
+      <div class="home-btn-sub">Catalog</div>
+    </button>
+    <button class="home-btn" onclick="showScreen('settings-screen')">
+      <div class="home-btn-icon">⚙️</div>
+      <div class="home-btn-label">SETTINGS</div>
+      <div class="home-btn-sub">App Config</div>
+    </button>
+  </div>
+</div>
+
+<!-- POS SCREEN -->
+<div id="pos-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">🛒 NEW SALE</div>
+      <div class="topbar-sub">Create Invoice</div>
+    </div>
+    <button class="btn-icon" onclick="clearCart()" title="Clear">🗑️</button>
+  </div>
+  <div class="pos-layout">
+    <div class="pos-top">
+      <!-- Customer -->
+      <div class="form-group">
+        <label class="form-label">👤 Customer</label>
+        <select class="form-select" id="pos-customer" onchange="onCustomerChange()">
+          <option value="">-- Select Customer --</option>
+        </select>
+      </div>
+      <div id="pos-credit-info" style="display:none" class="alert alert-warning"></div>
+      <!-- Category Filter -->
+      <div id="pos-categories" style="margin-bottom:8px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;"></div>
+      <!-- Product Search -->
+      <div class="product-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="form-input" id="pos-search" placeholder="Search products..." oninput="filterProducts()" style="padding-left:42px;">
+      </div>
+      <!-- Product Grid -->
+      <div class="product-grid" id="pos-products"></div>
+      <!-- Cart -->
+      <div id="cart-section" style="display:none;">
+        <div class="section-title">🛒 Cart Items</div>
+        <div class="cart-items" id="cart-items"></div>
+        <!-- Discount -->
+        <div class="form-group">
+          <label class="form-label">Discount (QR)</label>
+          <input type="number" class="form-input" id="pos-discount" value="0" min="0" oninput="updateCartSummary()">
+        </div>
+      </div>
+    </div>
+    <div class="pos-bottom">
+      <!-- Cart Summary -->
+      <div class="cart-summary" id="cart-summary-area">
+        <div class="summary-row"><span>Subtotal</span><span id="s-subtotal">QR 0.00</span></div>
+        <div class="summary-row"><span>Discount</span><span id="s-discount" style="color:var(--red)">- QR 0.00</span></div>
+        <div class="summary-row total"><span>TOTAL</span><span id="s-total">QR 0.00</span></div>
+      </div>
+      <!-- Payment -->
+      <div class="payment-tabs">
+        <button class="pay-tab active" id="tab-cash" onclick="setPayType('cash')">💵 CASH</button>
+        <button class="pay-tab" id="tab-credit" onclick="setPayType('credit')">📋 CREDIT</button>
+        <button class="pay-tab" id="tab-partial" onclick="setPayType('partial')">🔄 PARTIAL</button>
+      </div>
+      <div id="partial-cash-row" style="display:none;" class="form-group">
+        <label class="form-label">Cash Paid (QR)</label>
+        <input type="number" class="form-input" id="pos-cash-paid" value="0" oninput="updateCartSummary()">
+      </div>
+      <!-- Print Option -->
+      <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+        <span style="font-size:.8rem;font-weight:700;color:var(--text2);">PRINT:</span>
+        <button class="chip active" id="print-a4-btn" onclick="setPrintType('a4')">A4 Invoice</button>
+        <button class="chip" id="print-thermal-btn" onclick="setPrintType('thermal')">🧾 Thermal</button>
+        <button class="chip" id="print-none-btn" onclick="setPrintType('none')">No Print</button>
+      </div>
+      <button class="btn btn-success btn-lg btn-block" onclick="completeOrder()">
+        ✅ COMPLETE ORDER
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- INVENTORY SCREEN -->
+<div id="inventory-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">📦 TRUCK INVENTORY</div>
+      <div class="topbar-sub">Current Stock</div>
+    </div>
+    <button class="btn-icon" onclick="openAddStockModal()">+</button>
+  </div>
+  <div class="content pb-80">
+    <div id="low-stock-alerts"></div>
+    <div id="inventory-list"></div>
+  </div>
+  <!-- Add Stock Modal -->
+  <div class="modal-overlay" id="stock-modal">
+    <div class="modal">
+      <div class="modal-title">📦 Adjust Stock</div>
+      <div class="form-group">
+        <label class="form-label">Product</label>
+        <select class="form-select" id="adj-product"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Adjustment (+/-)</label>
+        <input type="number" class="form-input" id="adj-qty" placeholder="e.g. 50 or -5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <input type="text" class="form-input" id="adj-note" placeholder="Reason for adjustment">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-block" onclick="closeModal('stock-modal')">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="adjustStock()">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMERS SCREEN -->
+<div id="customers-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">👥 CUSTOMERS</div>
+      <div class="topbar-sub">Manage Clients</div>
+    </div>
+    <button class="btn-icon" onclick="openCustomerModal()">+</button>
+  </div>
+  <div class="content pb-80">
+    <div class="product-search" style="margin-bottom:12px;">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="form-input" id="cust-search" placeholder="Search customers..." oninput="filterCustomers()" style="padding-left:42px;">
+    </div>
+    <div id="customers-list"></div>
+  </div>
+  <!-- Customer Modal -->
+  <div class="modal-overlay" id="customer-modal">
+    <div class="modal">
+      <div class="modal-title" id="cust-modal-title">➕ Add Customer</div>
+      <input type="hidden" id="cust-id">
+      <div class="form-group">
+        <label class="form-label">Company / Name *</label>
+        <input type="text" class="form-input" id="cust-name" placeholder="Al Rayyan Supermarket">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contact Person</label>
+        <input type="text" class="form-input" id="cust-contact" placeholder="Ahmed Ali">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" class="form-input" id="cust-phone" placeholder="+974 XXXX XXXX">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input type="text" class="form-input" id="cust-address" placeholder="Area, Street, Doha">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-block" onclick="closeModal('customer-modal')">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="saveCustomer()">Save</button>
+      </div>
+    </div>
+  </div>
+  <!-- Customer Detail Modal -->
+  <div class="modal-overlay" id="cust-detail-modal">
+    <div class="modal">
+      <div class="modal-title" id="cust-detail-name"></div>
+      <div id="cust-detail-content"></div>
+      <div class="btn-row mt-12">
+        <button class="btn btn-outline btn-block" onclick="closeModal('cust-detail-modal')">Close</button>
+        <button class="btn btn-warning btn-block" id="cust-pay-btn" onclick="openCreditPayModal()">💰 Record Payment</button>
+      </div>
+    </div>
+  </div>
+  <!-- Credit Payment Modal -->
+  <div class="modal-overlay" id="credit-pay-modal">
+    <div class="modal">
+      <div class="modal-title">💰 Record Credit Payment</div>
+      <input type="hidden" id="cp-cust-id">
+      <div class="alert alert-warning" id="cp-balance-info"></div>
+      <div class="form-group">
+        <label class="form-label">Amount Paid (QR)</label>
+        <input type="number" class="form-input" id="cp-amount" placeholder="0.00" min="0">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-block" onclick="closeModal('credit-pay-modal')">Cancel</button>
+        <button class="btn btn-success btn-block" onclick="saveCreditPayment()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INVOICES SCREEN -->
+<div id="invoices-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">🧾 INVOICES</div>
+      <div class="topbar-sub">Sales History</div>
+    </div>
+  </div>
+  <div class="content pb-80">
+    <div class="form-group">
+      <input type="date" class="form-input" id="inv-filter-date" onchange="loadInvoices()">
+    </div>
+    <div id="invoices-list"></div>
+  </div>
+  <!-- Invoice Detail Modal -->
+  <div class="modal-overlay" id="inv-detail-modal">
+    <div class="modal">
+      <div class="modal-title">🧾 Invoice Details</div>
+      <div id="inv-detail-content"></div>
+      <div class="btn-row mt-12">
+        <button class="btn btn-outline btn-block" onclick="closeModal('inv-detail-modal')">Close</button>
+        <button class="btn btn-primary btn-block" onclick="reprintInvoice()">🖨️ Reprint</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORTS SCREEN -->
+<div id="reports-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">📊 REPORTS</div>
+      <div class="topbar-sub">Analytics & P&L</div>
+    </div>
+  </div>
+  <div class="content pb-80">
+    <div class="form-group" style="display:flex;gap:8px;">
+      <input type="date" class="form-input" id="rep-date-from" style="flex:1;">
+      <input type="date" class="form-input" id="rep-date-to" style="flex:1;">
+    </div>
+    <div class="report-tabs" id="report-tabs">
+      <button class="report-tab active" onclick="showReport('pl')">P&L</button>
+      <button class="report-tab" onclick="showReport('daily')">Daily Sales</button>
+      <button class="report-tab" onclick="showReport('products')">Top Products</button>
+      <button class="report-tab" onclick="showReport('credit')">Credit Balances</button>
+      <button class="report-tab" onclick="showReport('lowstock')">Low Stock</button>
+    </div>
+    <div id="report-content"></div>
+  </div>
+</div>
+
+<!-- EXPENSES SCREEN -->
+<div id="expenses-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">💸 EXPENSES</div>
+      <div class="topbar-sub">Track Costs</div>
+    </div>
+    <button class="btn-icon" onclick="openExpenseModal()">+</button>
+  </div>
+  <div class="content pb-80">
+    <div class="form-group">
+      <input type="date" class="form-input" id="exp-filter-date" onchange="loadExpenses()">
+    </div>
+    <div id="exp-summary-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+    <div id="expenses-list"></div>
+  </div>
+  <!-- Expense Modal -->
+  <div class="modal-overlay" id="expense-modal">
+    <div class="modal">
+      <div class="modal-title">💸 Add Expense</div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="exp-cat">
+          <option>Fuel</option>
+          <option>Maintenance</option>
+          <option>Salary</option>
+          <option>Loading/Unloading</option>
+          <option>Parking / Toll</option>
+          <option>Food & Drink</option>
+          <option>Supplies</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount (QR) *</label>
+        <input type="number" class="form-input" id="exp-amount" placeholder="0.00" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="exp-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" class="form-input" id="exp-notes" placeholder="Optional description">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-block" onclick="closeModal('expense-modal')">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="saveExpense()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCTS SCREEN -->
+<div id="products-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">🍿 PRODUCTS</div>
+      <div class="topbar-sub">Catalog Management</div>
+    </div>
+    <button class="btn-icon" onclick="openProductModal()">+</button>
+  </div>
+  <div class="content pb-80">
+    <div class="product-search" style="margin-bottom:12px;">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="form-input" id="prod-search" placeholder="Search products..." oninput="filterProductList()" style="padding-left:42px;">
+    </div>
+    <div id="products-list"></div>
+  </div>
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal">
+      <div class="modal-title" id="prod-modal-title">➕ Add Product</div>
+      <input type="hidden" id="prod-id">
+      <div class="form-group">
+        <label class="form-label">Product Name *</label>
+        <input type="text" class="form-input" id="prod-name" placeholder="e.g. Lay's Classic 28g">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="prod-cat">
+          <option>Popcorn</option>
+          <option>Chips</option>
+          <option>Crackers</option>
+          <option>Nuts</option>
+          <option>Candy</option>
+          <option>Chocolate</option>
+          <option>Beverages</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Cost Price (QR) *</label>
+          <input type="number" class="form-input" id="prod-cost" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Selling Price (QR) *</label>
+          <input type="number" class="form-input" id="prod-sell" placeholder="0.00" min="0" step="0.01">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Stock Qty</label>
+          <input type="number" class="form-input" id="prod-stock" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Low Stock Alert</label>
+          <input type="number" class="form-input" id="prod-low" placeholder="10" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unit</label>
+        <select class="form-select" id="prod-unit">
+          <option>Box</option><option>Carton</option><option>Piece</option><option>Pack</option><option>Kg</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Product Photo</label>
+        <div id="photo-preview-wrap" class="photo-preview-wrap" style="display:none;">
+          <img id="prod-photo-preview" class="photo-preview" src="" alt="Product">
+          <button type="button" class="photo-remove-btn" onclick="removeProductPhoto()">✕</button>
+        </div>
+        <div class="photo-upload-area" id="photo-upload-area">
+          <input type="file" id="prod-photo-input" accept="image/*" onchange="handlePhotoUpload(event)">
+          <div style="font-size:2rem;margin-bottom:6px;">📷</div>
+          <div style="font-weight:700;font-size:.9rem;color:var(--navy);">Tap to upload photo</div>
+          <div style="font-size:.75rem;color:var(--text2);margin-top:4px;">JPG, PNG — stored offline</div>
+        </div>
+        <input type="hidden" id="prod-photo-data">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emoji Icon (if no photo)</label>
+        <input type="text" class="form-input" id="prod-icon" placeholder="🍿" maxlength="4">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-block" onclick="closeModal('product-modal')">Cancel</button>
+        <button class="btn btn-primary btn-block" onclick="saveProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="settings-screen" class="screen">
+  <div class="topbar">
+    <button class="btn-back" onclick="showScreen('home-screen')">←</button>
+    <div>
+      <div class="topbar-title">⚙️ SETTINGS</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Company Info</div>
+      <div class="form-group">
+        <label class="form-label">Company Name</label>
+        <input type="text" class="form-input" id="set-company" value="New Fair Way Trading">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input type="text" class="form-input" id="set-address" value="Dohatna Logistic Park, Umm Shaharaine-1, Doha Qatar">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone 1</label>
+        <input type="text" class="form-input" id="set-phone1" value="+974 7004 3377">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone 2</label>
+        <input type="text" class="form-input" id="set-phone2" value="+974 7204 3377">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="text" class="form-input" id="set-email" value="fairway.fmcg@gmail.com">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🔐 Security</div>
+      <p style="font-size:.82rem;color:var(--text2);margin-bottom:12px;">Default PIN is <strong>1234</strong> — change it to something private.</p>
+      <div class="form-group">
+        <label class="form-label">New PIN (4 digits)</label>
+        <input type="number" class="form-input" id="set-new-pin" placeholder="e.g. 5678" maxlength="4">
+      </div>
+      <button class="btn btn-warning btn-block" onclick="changePin()">🔐 Change PIN</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Data Management</div>
+      <button class="btn btn-outline btn-block mt-8" onclick="exportData()">📤 Export Data (JSON)</button>
+      <button class="btn btn-danger btn-block mt-8" onclick="confirmResetData()">🗑️ Reset All Data</button>
+    </div>
+    <div class="card">
+      <div class="card-title">About</div>
+      <p style="font-size:.85rem;color:var(--text2);line-height:1.6;">New Fair Way Trading POS v1.0<br>Offline-first PWA for snack distribution.<br>Works without internet connection.<br>Install via browser → Add to Home Screen.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT AREA -->
+<div id="print-area"></div>
+
+<!-- SUCCESS TOAST -->
+<div id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 20px;border-radius:20px;font-weight:700;font-size:.9rem;z-index:9999;display:none;white-space:nowrap;box-shadow:var(--shadow-lg);"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATABASE — IndexedDB
+// ═══════════════════════════════════════════════
+const DB_NAME = 'FairwayDB';
+const DB_VER = 1;
+let db;
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      // Customers
+      if (!d.objectStoreNames.contains('customers')) {
+        const cs = d.createObjectStore('customers', { keyPath: 'customer_id', autoIncrement: true });
+        cs.createIndex('name', 'name');
+      }
+      // Products
+      if (!d.objectStoreNames.contains('products')) {
+        const ps = d.createObjectStore('products', { keyPath: 'product_id', autoIncrement: true });
+        ps.createIndex('category', 'category');
+      }
+      // Truck Inventory
+      if (!d.objectStoreNames.contains('inventory')) {
+        const inv = d.createObjectStore('inventory', { keyPath: 'inventory_id', autoIncrement: true });
+        inv.createIndex('product_id', 'product_id', { unique: true });
+      }
+      // Invoices
+      if (!d.objectStoreNames.contains('invoices')) {
+        const ins = d.createObjectStore('invoices', { keyPath: 'invoice_id', autoIncrement: true });
+        ins.createIndex('date', 'date');
+        ins.createIndex('customer_id', 'customer_id');
+      }
+      // Invoice Items
+      if (!d.objectStoreNames.contains('invoice_items')) {
+        const ii = d.createObjectStore('invoice_items', { keyPath: 'item_id', autoIncrement: true });
+        ii.createIndex('invoice_id', 'invoice_id');
+      }
+      // Expenses
+      if (!d.objectStoreNames.contains('expenses')) {
+        const ex = d.createObjectStore('expenses', { keyPath: 'expense_id', autoIncrement: true });
+        ex.createIndex('date', 'date');
+      }
+      // Credit Payments
+      if (!d.objectStoreNames.contains('credit_payments')) {
+        const cp = d.createObjectStore('credit_payments', { keyPath: 'payment_id', autoIncrement: true });
+        cp.createIndex('customer_id', 'customer_id');
+      }
+      // Settings
+      if (!d.objectStoreNames.contains('settings')) {
+        d.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+function dbGetAll(store) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+function dbGetByIndex(store, indexName, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).index(indexName).getAll(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+function dbPut(store, data) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(data);
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+function dbAdd(store, data) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).add(data);
+    req.onsuccess = () => res(req.result);
+    req.onerror = e => rej(e);
+  });
+}
+function dbDelete(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(key);
+    req.onsuccess = () => res();
+    req.onerror = e => rej(e);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════
+let cart = [];
+let payType = 'cash';
+let printType = 'a4';
+let currentScreen = 'home-screen';
+let selectedInvoiceId = null;
+let selectedCustomerId = null;
+let currentReportTab = 'pl';
+let settings = {};
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  currentScreen = id;
+  // Load screen data
+  if (id === 'home-screen') updateHomeSummary();
+  if (id === 'pos-screen') loadPOSScreen();
+  if (id === 'inventory-screen') loadInventory();
+  if (id === 'customers-screen') loadCustomers();
+  if (id === 'invoices-screen') { document.getElementById('inv-filter-date').value = today(); loadInvoices(); }
+  if (id === 'reports-screen') { initReportDates(); showReport('pl'); }
+  if (id === 'expenses-screen') { document.getElementById('exp-filter-date').value = today(); loadExpenses(); }
+  if (id === 'products-screen') loadProducts();
+  if (id === 'settings-screen') loadSettings();
+}
+
+// ═══════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtMoney(n) {
+  return 'QR ' + parseFloat(n || 0).toFixed(2);
+}
+function showToast(msg, ms = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', ms);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function confirmAction(msg, fn) {
+  if (confirm(msg)) fn();
+}
+
+// ═══════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════
+async function loadSettings() {
+  const keys = ['company','address','phone1','phone2','email'];
+  for (const k of keys) {
+    const row = await dbGet('settings', k);
+    if (row) document.getElementById('set-' + k).value = row.value;
+  }
+}
+async function saveSettings() {
+  const keys = ['company','address','phone1','phone2','email'];
+  for (const k of keys) {
+    await dbPut('settings', { key: k, value: document.getElementById('set-' + k).value });
+  }
+  await loadSettingsObj();
+  showToast('✅ Settings saved!');
+}
+async function changePin() {
+  const newPin = document.getElementById('set-new-pin').value.trim();
+  if (!/^\d{4}$/.test(newPin)) { showToast('⚠️ PIN must be exactly 4 digits!'); return; }
+  await dbPut('settings', { key: 'app_pin', value: newPin });
+  document.getElementById('set-new-pin').value = '';
+  showToast('✅ PIN changed successfully!');
+}
+  const keys = ['company','address','phone1','phone2','email'];
+  settings = {};
+  for (const k of keys) {
+    const row = await dbGet('settings', k);
+    settings[k] = row ? row.value : getDefaultSetting(k);
+  }
+}
+function getDefaultSetting(k) {
+  const defaults = {
+    company: 'New Fair Way Trading',
+    address: 'Dohatna Logistic Park, Umm Shaharaine-1, Doha Qatar',
+    phone1: '+974 7004 3377',
+    phone2: '+974 7204 3377',
+    email: 'fairway.fmcg@gmail.com'
+  };
+  return defaults[k] || '';
+}
+
+// ═══════════════════════════════════════════════
+// HOME SUMMARY
+// ═══════════════════════════════════════════════
+async function updateHomeSummary() {
+  const t = today();
+  document.getElementById('home-date').textContent = fmtDate(t) + ' — Qatar Time';
+  const invoices = await dbGetByIndex('invoices', 'date', t);
+  const totalSales = invoices.reduce((a, i) => a + i.total_amount, 0);
+  document.getElementById('hs-sales').textContent = 'QR ' + totalSales.toFixed(0);
+  document.getElementById('hs-invoices').textContent = invoices.length;
+  // Profit: need cost
+  const allItems = await dbGetAll('invoice_items');
+  const allProds = await dbGetAll('products');
+  const prodMap = {};
+  allProds.forEach(p => prodMap[p.product_id] = p);
+  let cost = 0;
+  for (const inv of invoices) {
+    const items = allItems.filter(i => i.invoice_id === inv.invoice_id);
+    for (const it of items) {
+      const p = prodMap[it.product_id];
+      if (p) cost += p.cost_price * it.quantity;
+    }
+  }
+  const exps = await dbGetByIndex('expenses', 'date', t);
+  const totalExp = exps.reduce((a, e) => a + e.amount, 0);
+  const profit = totalSales - cost - totalExp;
+  const profitEl = document.getElementById('hs-profit');
+  profitEl.textContent = 'QR ' + profit.toFixed(0);
+  profitEl.style.color = profit >= 0 ? '#4cff72' : '#ff6b6b';
+}
+
+// ═══════════════════════════════════════════════
+// POS SCREEN
+// ═══════════════════════════════════════════════
+async function loadPOSScreen() {
+  cart = [];
+  payType = 'cash';
+  printType = 'a4';
+  document.getElementById('pos-discount').value = 0;
+  document.getElementById('pos-cash-paid').value = 0;
+  document.getElementById('pos-credit-info').style.display = 'none';
+  renderCart();
+  // Load customers
+  const custs = await dbGetAll('customers');
+  const sel = document.getElementById('pos-customer');
+  sel.innerHTML = '<option value="">-- Select Customer (Optional) --</option>';
+  custs.sort((a,b)=>a.name.localeCompare(b.name)).forEach(c => {
+    sel.innerHTML += `<option value="${c.customer_id}">${c.name}</option>`;
+  });
+  // Load products
+  const prods = await dbGetAll('products');
+  const inv = await dbGetAll('inventory');
+  const invMap = {};
+  inv.forEach(i => invMap[i.product_id] = i.quantity);
+  // Categories
+  const cats = ['All', ...new Set(prods.map(p => p.category))];
+  const catDiv = document.getElementById('pos-categories');
+  catDiv.innerHTML = cats.map(c => `<span class="chip ${c==='All'?'active':''}" onclick="filterPOSByCategory(this,'${c}')">${c}</span>`).join('');
+  // Products
+  window._posProducts = prods.map(p => ({...p, truckQty: invMap[p.product_id] || 0}));
+  renderPOSProducts(window._posProducts);
+  setPayType('cash');
+  setPrintType('a4');
+}
+
+function renderPOSProducts(products) {
+  const grid = document.getElementById('pos-products');
+  if (!products.length) { grid.innerHTML = '<div class="empty-state"><div>🔍</div><div>No products found</div></div>'; return; }
+  grid.innerHTML = products.map(p => {
+    const stock = p.truckQty || 0;
+    const cls = stock <= 0 ? 'out-stock' : stock <= (p.low_stock_threshold || 10) ? 'low-stock' : '';
+    const badge = stock <= 0 ? '<span class="product-badge" style="background:var(--red);color:#fff">OUT</span>' :
+                  stock <= (p.low_stock_threshold || 10) ? '<span class="product-badge">LOW</span>' : '';
+    const imgHtml = p.photo
+      ? `<img class="product-card-img" src="${p.photo}" alt="${p.name}" loading="lazy">`
+      : `<div class="product-card-img-placeholder">${p.icon||'📦'}</div>`;
+    return `<div class="product-card ${cls}" onclick="addToCart(${p.product_id})">
+      ${badge}
+      ${imgHtml}
+      <div class="product-card-body">
+        <div class="product-name">${p.name}</div>
+        <div class="product-price">${fmtMoney(p.selling_price)}</div>
+        <div class="product-stock">Stock: ${stock} ${p.unit||''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterPOSByCategory(el, cat) {
+  document.querySelectorAll('#pos-categories .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const prods = window._posProducts || [];
+  renderPOSProducts(cat === 'All' ? prods : prods.filter(p => p.category === cat));
+}
+
+function filterProducts() {
+  const q = document.getElementById('pos-search').value.toLowerCase();
+  const prods = (window._posProducts || []).filter(p => p.name.toLowerCase().includes(q));
+  renderPOSProducts(prods);
+}
+
+async function addToCart(productId) {
+  const p = (window._posProducts || []).find(x => x.product_id === productId);
+  if (!p) return;
+  if ((p.truckQty || 0) <= 0) { showToast('⚠️ Out of stock!'); return; }
+  const existing = cart.find(c => c.product_id === productId);
+  if (existing) {
+    if (existing.quantity >= p.truckQty) { showToast('⚠️ Not enough stock!'); return; }
+    existing.quantity++;
+    existing.total = existing.quantity * existing.price;
+  } else {
+    cart.push({ product_id: productId, name: p.name, price: p.selling_price, cost: p.cost_price, quantity: 1, total: p.selling_price, icon: p.icon || '📦', unit: p.unit || '', maxQty: p.truckQty });
+  }
+  renderCart();
+}
+
+function removeFromCart(idx) {
+  cart.splice(idx, 1);
+  renderCart();
+}
+
+function updateQty(idx, delta) {
+  const item = cart[idx];
+  const newQty = item.quantity + delta;
+  if (newQty <= 0) { removeFromCart(idx); return; }
+  if (newQty > item.maxQty) { showToast('⚠️ Max stock: ' + item.maxQty); return; }
+  item.quantity = newQty;
+  item.total = newQty * item.price;
+  renderCart();
+}
+
+function renderCart() {
+  const section = document.getElementById('cart-section');
+  const itemsDiv = document.getElementById('cart-items');
+  if (cart.length === 0) { section.style.display = 'none'; updateCartSummary(); return; }
+  section.style.display = 'block';
+  itemsDiv.innerHTML = cart.map((item, i) => `
+    <div class="cart-item">
+      <span style="font-size:1.2rem">${item.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div class="cart-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+        <div class="cart-item-price">${fmtMoney(item.price)} each</div>
+      </div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="updateQty(${i},-1)">−</button>
+        <span class="qty-val">${item.quantity}</span>
+        <button class="qty-btn" onclick="updateQty(${i},1)">+</button>
+      </div>
+      <div class="cart-item-total">${fmtMoney(item.total)}</div>
+      <button class="cart-item-del" onclick="removeFromCart(${i})">🗑</button>
+    </div>`).join('');
+  updateCartSummary();
+}
+
+function updateCartSummary() {
+  const subtotal = cart.reduce((a, i) => a + i.total, 0);
+  const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+  const total = Math.max(0, subtotal - discount);
+  document.getElementById('s-subtotal').textContent = fmtMoney(subtotal);
+  document.getElementById('s-discount').textContent = '- ' + fmtMoney(discount);
+  document.getElementById('s-total').textContent = fmtMoney(total);
+}
+
+function getCartTotal() {
+  const subtotal = cart.reduce((a, i) => a + i.total, 0);
+  const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+  return Math.max(0, subtotal - discount);
+}
+
+function setPayType(type) {
+  payType = type;
+  ['cash','credit','partial'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === type);
+  });
+  document.getElementById('partial-cash-row').style.display = type === 'partial' ? 'block' : 'none';
+}
+
+function setPrintType(type) {
+  printType = type;
+  ['a4','thermal','none'].forEach(t => {
+    document.getElementById('print-' + t + '-btn').classList.toggle('active', t === type);
+  });
+}
+
+async function onCustomerChange() {
+  const custId = parseInt(document.getElementById('pos-customer').value);
+  const info = document.getElementById('pos-credit-info');
+  if (!custId) { info.style.display = 'none'; return; }
+  const cust = await dbGet('customers', custId);
+  if (cust && cust.credit_balance > 0) {
+    info.style.display = 'block';
+    info.textContent = `⚠️ ${cust.name} has outstanding credit: QR ${cust.credit_balance.toFixed(2)}`;
+  } else {
+    info.style.display = 'none';
+  }
+}
+
+function clearCart() {
+  if (cart.length === 0) return;
+  if (!confirm('Clear all cart items?')) return;
+  cart = [];
+  renderCart();
+  document.getElementById('pos-discount').value = 0;
+}
+
+async function completeOrder() {
+  if (cart.length === 0) { showToast('⚠️ Cart is empty!'); return; }
+  const custId = parseInt(document.getElementById('pos-customer').value) || null;
+  const total = getCartTotal();
+  const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+  let cashPaid = total;
+  if (payType === 'credit') cashPaid = 0;
+  if (payType === 'partial') cashPaid = parseFloat(document.getElementById('pos-cash-paid').value) || 0;
+  // Validation
+  if (payType === 'credit' && !custId) { showToast('⚠️ Select customer for credit sale!'); return; }
+  if (payType === 'partial' && cashPaid >= total) { showToast('⚠️ Partial pay must be less than total. Use Cash.'); return; }
+  // Save invoice
+  const invId = await dbAdd('invoices', {
+    customer_id: custId,
+    date: today(),
+    total_amount: total,
+    payment_type: payType,
+    cash_paid: cashPaid,
+    discount: discount,
+    created_at: new Date().toISOString()
+  });
+  // Save items & update inventory
+  for (const item of cart) {
+    await dbAdd('invoice_items', {
+      invoice_id: invId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+      cost: item.cost,
+      total: item.total
+    });
+    // Update truck inventory
+    const invRows = await dbGetByIndex('inventory', 'product_id', item.product_id);
+    if (invRows.length > 0) {
+      const inv = invRows[0];
+      inv.quantity = Math.max(0, inv.quantity - item.quantity);
+      inv.last_updated = new Date().toISOString();
+      await dbPut('inventory', inv);
+    }
+  }
+  // Update customer credit
+  if (custId && (payType === 'credit' || payType === 'partial')) {
+    const cust = await dbGet('customers', custId);
+    if (cust) {
+      const creditAdded = total - cashPaid;
+      cust.credit_balance = (cust.credit_balance || 0) + creditAdded;
+      await dbPut('customers', cust);
+    }
+  }
+  // Print
+  const invoice = await dbGet('invoices', invId);
+  const items = await dbGetByIndex('invoice_items', 'invoice_id', invId);
+  const customer = custId ? await dbGet('customers', custId) : null;
+  const products = await dbGetAll('products');
+  const prodMap = {};
+  products.forEach(p => prodMap[p.product_id] = p);
+  if (printType === 'a4') printA4Invoice(invoice, items, customer, prodMap);
+  else if (printType === 'thermal') printThermalReceipt(invoice, items, customer, prodMap);
+  showToast('✅ Order #' + invId + ' completed!');
+  // Refresh products stock in POS
+  await loadPOSScreen();
+}
+
+// ═══════════════════════════════════════════════
+// INVENTORY
+// ═══════════════════════════════════════════════
+async function loadInventory() {
+  const products = await dbGetAll('products');
+  const invRows = await dbGetAll('inventory');
+  const invMap = {};
+  invRows.forEach(i => invMap[i.product_id] = i);
+  const alerts = document.getElementById('low-stock-alerts');
+  const list = document.getElementById('inventory-list');
+  const low = products.filter(p => {
+    const qty = invMap[p.product_id] ? invMap[p.product_id].quantity : 0;
+    return qty <= (p.low_stock_threshold || 10) && qty > 0;
+  });
+  const out = products.filter(p => {
+    const qty = invMap[p.product_id] ? invMap[p.product_id].quantity : 0;
+    return qty <= 0;
+  });
+  let alertHtml = '';
+  if (out.length) alertHtml += `<div class="alert alert-warning">🚨 Out of stock: ${out.map(p=>p.name).join(', ')}</div>`;
+  if (low.length) alertHtml += `<div class="alert alert-warning">⚠️ Low stock: ${low.map(p=>p.name).join(', ')}</div>`;
+  alerts.innerHTML = alertHtml;
+  if (!products.length) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">No products yet</div><div class="empty-state-sub">Add products first</div></div>'; return; }
+  const cats = [...new Set(products.map(p => p.category))];
+  list.innerHTML = cats.map(cat => {
+    const catProds = products.filter(p => p.category === cat);
+    return `<div class="section-title">${cat}</div>` + catProds.map(p => {
+      const qty = invMap[p.product_id] ? invMap[p.product_id].quantity : 0;
+      const cls = qty <= 0 ? 'out' : qty <= (p.low_stock_threshold || 10) ? 'low' : '';
+      const imgHtml = p.photo
+        ? `<img class="inv-photo" src="${p.photo}" alt="${p.name}">`
+        : `<div class="inv-photo-placeholder">${p.icon||'📦'}</div>`;
+      return `<div class="inv-card">
+        ${imgHtml}
+        <div class="inv-info">
+          <div class="inv-name">${p.name}</div>
+          <div class="inv-detail">${p.category} · Cost: ${fmtMoney(p.cost_price)} · Sell: ${fmtMoney(p.selling_price)}</div>
+          <div class="inv-detail">Low alert at ${p.low_stock_threshold || 10} ${p.unit||''}</div>
+        </div>
+        <div>
+          <div class="inv-qty ${cls}">${qty}</div>
+          <div style="font-size:.65rem;color:var(--text2);text-align:center;">${p.unit||'units'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }).join('');
+}
+
+function openAddStockModal() {
+  dbGetAll('products').then(prods => {
+    const sel = document.getElementById('adj-product');
+    sel.innerHTML = prods.map(p => `<option value="${p.product_id}">${p.name}</option>`).join('');
+    document.getElementById('adj-qty').value = '';
+    document.getElementById('adj-note').value = '';
+    openModal('stock-modal');
+  });
+}
+
+async function adjustStock() {
+  const productId = parseInt(document.getElementById('adj-product').value);
+  const qty = parseInt(document.getElementById('adj-qty').value);
+  if (isNaN(qty)) { showToast('⚠️ Enter a valid quantity!'); return; }
+  const rows = await dbGetByIndex('inventory', 'product_id', productId);
+  if (rows.length > 0) {
+    const inv = rows[0];
+    inv.quantity = Math.max(0, inv.quantity + qty);
+    inv.last_updated = new Date().toISOString();
+    await dbPut('inventory', inv);
+  } else {
+    await dbAdd('inventory', { product_id: productId, quantity: Math.max(0, qty), last_updated: new Date().toISOString() });
+  }
+  closeModal('stock-modal');
+  loadInventory();
+  showToast('✅ Stock adjusted!');
+}
+
+// ═══════════════════════════════════════════════
+// CUSTOMERS
+// ═══════════════════════════════════════════════
+async function loadCustomers() {
+  const custs = await dbGetAll('customers');
+  const list = document.getElementById('customers-list');
+  if (!custs.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">No customers yet</div><div class="empty-state-sub">Tap + to add</div></div>';
+    return;
+  }
+  custs.sort((a,b) => a.name.localeCompare(b.name));
+  list.innerHTML = custs.map(c => `
+    <div class="cust-card ${c.credit_balance > 0 ? 'has-credit' : 'no-credit'}" onclick="viewCustomer(${c.customer_id})">
+      <div class="flex-between">
+        <div>
+          <div class="cust-name">${c.name}</div>
+          <div class="cust-info">${c.contact_person||''} ${c.phone ? '· '+c.phone : ''}</div>
+          <div class="cust-info" style="margin-top:2px;">${c.address||''}</div>
+        </div>
+        <div class="text-right">
+          <div class="cust-credit ${c.credit_balance > 0 ? 'positive' : 'zero'}">
+            ${c.credit_balance > 0 ? '💳 QR '+c.credit_balance.toFixed(2) : '✅ Clear'}
+          </div>
+          <div style="font-size:.7rem;color:var(--text2);margin-top:4px;">Credit Balance</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function filterCustomers() {
+  const q = document.getElementById('cust-search').value.toLowerCase();
+  dbGetAll('customers').then(custs => {
+    const filtered = custs.filter(c => c.name.toLowerCase().includes(q) || (c.phone||'').includes(q));
+    // Re-render only filtered
+    const list = document.getElementById('customers-list');
+    list.innerHTML = filtered.map(c => `
+      <div class="cust-card ${c.credit_balance > 0 ? 'has-credit' : 'no-credit'}" onclick="viewCustomer(${c.customer_id})">
+        <div class="flex-between">
+          <div>
+            <div class="cust-name">${c.name}</div>
+            <div class="cust-info">${c.contact_person||''} ${c.phone ? '· '+c.phone : ''}</div>
+          </div>
+          <div class="cust-credit ${c.credit_balance > 0 ? 'positive' : 'zero'}">
+            ${c.credit_balance > 0 ? '💳 QR '+c.credit_balance.toFixed(2) : '✅ Clear'}
+          </div>
+        </div>
+      </div>`).join('');
+  });
+}
+
+function openCustomerModal(cust) {
+  document.getElementById('cust-modal-title').textContent = cust ? '✏️ Edit Customer' : '➕ Add Customer';
+  document.getElementById('cust-id').value = cust ? cust.customer_id : '';
+  document.getElementById('cust-name').value = cust ? cust.name : '';
+  document.getElementById('cust-contact').value = cust ? cust.contact_person || '' : '';
+  document.getElementById('cust-phone').value = cust ? cust.phone || '' : '';
+  document.getElementById('cust-address').value = cust ? cust.address || '' : '';
+  openModal('customer-modal');
+}
+
+async function saveCustomer() {
+  const name = document.getElementById('cust-name').value.trim();
+  if (!name) { showToast('⚠️ Name is required!'); return; }
+  const id = document.getElementById('cust-id').value;
+  const data = {
+    name,
+    contact_person: document.getElementById('cust-contact').value,
+    phone: document.getElementById('cust-phone').value,
+    address: document.getElementById('cust-address').value,
+    credit_balance: 0,
+    created_at: new Date().toISOString()
+  };
+  if (id) {
+    const existing = await dbGet('customers', parseInt(id));
+    data.customer_id = parseInt(id);
+    data.credit_balance = existing.credit_balance || 0;
+    data.created_at = existing.created_at;
+    await dbPut('customers', data);
+  } else {
+    await dbAdd('customers', data);
+  }
+  closeModal('customer-modal');
+  loadCustomers();
+  showToast('✅ Customer saved!');
+}
+
+async function viewCustomer(id) {
+  selectedCustomerId = id;
+  const cust = await dbGet('customers', id);
+  const invoices = await dbGetByIndex('invoices', 'customer_id', id);
+  const payments = await dbGetByIndex('credit_payments', 'customer_id', id);
+  document.getElementById('cust-detail-name').textContent = '👤 ' + cust.name;
+  const totalPurchases = invoices.reduce((a,i)=>a+i.total_amount,0);
+  let html = `<div class="card">
+    <div class="summary-row"><span>📞 Phone:</span><span>${cust.phone||'-'}</span></div>
+    <div class="summary-row"><span>👤 Contact:</span><span>${cust.contact_person||'-'}</span></div>
+    <div class="summary-row"><span>📍 Address:</span><span style="text-align:right;max-width:60%;">${cust.address||'-'}</span></div>
+    <div class="summary-row"><span>🧾 Invoices:</span><span>${invoices.length}</span></div>
+    <div class="summary-row"><span>💰 Total Purchases:</span><span>${fmtMoney(totalPurchases)}</span></div>
+    <div class="summary-row total"><span>💳 Credit Balance:</span><span class="${cust.credit_balance>0?'color-red':'color-green'}">${fmtMoney(cust.credit_balance)}</span></div>
+  </div>`;
+  if (invoices.length > 0) {
+    html += '<div class="section-title" style="margin-top:12px;">Recent Invoices</div>';
+    invoices.sort((a,b)=>b.invoice_id-a.invoice_id).slice(0,5).forEach(inv => {
+      html += `<div style="display:flex;justify-content:space-between;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:4px;font-size:.85rem;">
+        <span>#${inv.invoice_id} · ${fmtDate(inv.date)}</span>
+        <span><strong>${fmtMoney(inv.total_amount)}</strong> · <span class="badge badge-${inv.payment_type==='cash'?'green':inv.payment_type==='credit'?'red':'gold'}">${inv.payment_type}</span></span>
+      </div>`;
+    });
+  }
+  document.getElementById('cust-detail-content').innerHTML = html;
+  document.getElementById('cust-pay-btn').style.display = cust.credit_balance > 0 ? 'flex' : 'none';
+  openModal('cust-detail-modal');
+}
+
+function openCreditPayModal() {
+  closeModal('cust-detail-modal');
+  dbGet('customers', selectedCustomerId).then(cust => {
+    document.getElementById('cp-cust-id').value = cust.customer_id;
+    document.getElementById('cp-balance-info').textContent = `Outstanding: QR ${cust.credit_balance.toFixed(2)}`;
+    document.getElementById('cp-amount').value = '';
+    openModal('credit-pay-modal');
+  });
+}
+
+async function saveCreditPayment() {
+  const custId = parseInt(document.getElementById('cp-cust-id').value);
+  const amount = parseFloat(document.getElementById('cp-amount').value) || 0;
+  if (amount <= 0) { showToast('⚠️ Enter valid amount!'); return; }
+  const cust = await dbGet('customers', custId);
+  const newBalance = Math.max(0, cust.credit_balance - amount);
+  cust.credit_balance = newBalance;
+  await dbPut('customers', cust);
+  await dbAdd('credit_payments', { customer_id: custId, amount, date: today(), created_at: new Date().toISOString() });
+  closeModal('credit-pay-modal');
+  loadCustomers();
+  showToast(`✅ QR ${amount.toFixed(2)} recorded! Balance: QR ${newBalance.toFixed(2)}`);
+}
+
+// ═══════════════════════════════════════════════
+// INVOICES
+// ═══════════════════════════════════════════════
+async function loadInvoices() {
+  const date = document.getElementById('inv-filter-date').value;
+  const invoices = date ? await dbGetByIndex('invoices', 'date', date) : await dbGetAll('invoices');
+  const customers = await dbGetAll('customers');
+  const custMap = {};
+  customers.forEach(c => custMap[c.customer_id] = c);
+  const list = document.getElementById('invoices-list');
+  if (!invoices.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🧾</div><div class="empty-state-text">No invoices</div></div>';
+    return;
+  }
+  invoices.sort((a,b)=>b.invoice_id-a.invoice_id);
+  const total = invoices.reduce((a,i)=>a+i.total_amount,0);
+  list.innerHTML = `<div class="card" style="margin-bottom:12px;"><div class="flex-between"><span>Total (${invoices.length} invoices)</span><strong>${fmtMoney(total)}</strong></div></div>` +
+    invoices.map(inv => `
+    <div class="card" style="cursor:pointer;margin-bottom:8px;" onclick="viewInvoice(${inv.invoice_id})">
+      <div class="flex-between">
+        <div>
+          <div style="font-size:1rem;font-weight:700;">#${String(inv.invoice_id).padStart(4,'0')} · ${custMap[inv.customer_id]?.name||'Walk-in'}</div>
+          <div style="font-size:.78rem;color:var(--text2);">${fmtDate(inv.date)} · ${inv.payment_type.toUpperCase()}</div>
+        </div>
+        <div class="text-right">
+          <div style="font-size:1.1rem;font-weight:800;color:var(--navy);">${fmtMoney(inv.total_amount)}</div>
+          <span class="badge badge-${inv.payment_type==='cash'?'green':inv.payment_type==='credit'?'red':'gold'}">${inv.payment_type}</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function viewInvoice(id) {
+  selectedInvoiceId = id;
+  const inv = await dbGet('invoices', id);
+  const items = await dbGetByIndex('invoice_items', 'invoice_id', id);
+  const prods = await dbGetAll('products');
+  const custs = await dbGetAll('customers');
+  const prodMap = {}; prods.forEach(p=>prodMap[p.product_id]=p);
+  const custMap = {}; custs.forEach(c=>custMap[c.customer_id]=c);
+  const cust = custMap[inv.customer_id];
+  let html = `<div class="card">
+    <div class="summary-row"><span>Invoice #</span><span>${String(id).padStart(4,'0')}</span></div>
+    <div class="summary-row"><span>Date</span><span>${fmtDate(inv.date)}</span></div>
+    <div class="summary-row"><span>Customer</span><span>${cust?.name||'Walk-in'}</span></div>
+    <div class="summary-row"><span>Payment</span><span class="badge badge-${inv.payment_type==='cash'?'green':inv.payment_type==='credit'?'red':'gold'}">${inv.payment_type}</span></div>
+    ${inv.cash_paid < inv.total_amount ? `<div class="summary-row"><span>Cash Paid</span><span>${fmtMoney(inv.cash_paid)}</span></div>` : ''}
+    <div class="divider"></div>`;
+  items.forEach((it,i)=>{
+    const p = prodMap[it.product_id];
+    html += `<div class="summary-row"><span>${i+1}. ${p?.name||'?'} ×${it.quantity}</span><span>${fmtMoney(it.total)}</span></div>`;
+  });
+  html += `<div class="divider"></div>
+    ${inv.discount>0?`<div class="summary-row"><span>Discount</span><span class="color-red">-${fmtMoney(inv.discount)}</span></div>`:''}
+    <div class="summary-row total"><span>TOTAL</span><span>${fmtMoney(inv.total_amount)}</span></div>
+  </div>`;
+  document.getElementById('inv-detail-content').innerHTML = html;
+  openModal('inv-detail-modal');
+}
+
+async function reprintInvoice() {
+  if (!selectedInvoiceId) return;
+  const inv = await dbGet('invoices', selectedInvoiceId);
+  const items = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
+  const prods = await dbGetAll('products');
+  const custs = await dbGetAll('customers');
+  const prodMap = {}; prods.forEach(p=>prodMap[p.product_id]=p);
+  const custMap = {}; custs.forEach(c=>custMap[c.customer_id]=c);
+  const cust = custMap[inv.customer_id] || null;
+  closeModal('inv-detail-modal');
+  printA4Invoice(inv, items, cust, prodMap);
+}
+
+// ═══════════════════════════════════════════════
+// PRODUCTS
+// ═══════════════════════════════════════════════
+async function loadProducts() {
+  const prods = await dbGetAll('products');
+  const list = document.getElementById('products-list');
+  if (!prods.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🍿</div><div class="empty-state-text">No products yet</div><div class="empty-state-sub">Tap + to add</div></div>';
+    return;
+  }
+  list.innerHTML = prods.sort((a,b)=>a.name.localeCompare(b.name)).map(p => {
+    const imgHtml = p.photo
+      ? `<img class="inv-photo" src="${p.photo}" alt="${p.name}">`
+      : `<div class="inv-photo-placeholder">${p.icon||'📦'}</div>`;
+    return `<div class="inv-card">
+      ${imgHtml}
+      <div class="inv-info">
+        <div class="inv-name">${p.name}</div>
+        <div class="inv-detail">${p.category} · ${p.unit}</div>
+        <div class="inv-detail">Cost: ${fmtMoney(p.cost_price)} · Sell: ${fmtMoney(p.selling_price)} · Margin: ${((p.selling_price-p.cost_price)/p.selling_price*100).toFixed(0)}%</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="editProduct(${p.product_id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.product_id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterProductList() {
+  const q = document.getElementById('prod-search').value.toLowerCase();
+  dbGetAll('products').then(prods => {
+    const filtered = prods.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    const list = document.getElementById('products-list');
+    list.innerHTML = filtered.map(p => {
+      const imgHtml = p.photo
+        ? `<img class="inv-photo" src="${p.photo}" alt="${p.name}">`
+        : `<div class="inv-photo-placeholder">${p.icon||'📦'}</div>`;
+      return `<div class="inv-card">
+        ${imgHtml}
+        <div class="inv-info">
+          <div class="inv-name">${p.name}</div>
+          <div class="inv-detail">${p.category} · Cost: ${fmtMoney(p.cost_price)} · Sell: ${fmtMoney(p.selling_price)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="editProduct(${p.product_id})">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.product_id})">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function openProductModal(prod) {
+  document.getElementById('prod-modal-title').textContent = prod ? '✏️ Edit Product' : '➕ Add Product';
+  document.getElementById('prod-id').value = prod ? prod.product_id : '';
+  document.getElementById('prod-name').value = prod ? prod.name : '';
+  document.getElementById('prod-cat').value = prod ? prod.category : 'Chips';
+  document.getElementById('prod-cost').value = prod ? prod.cost_price : '';
+  document.getElementById('prod-sell').value = prod ? prod.selling_price : '';
+  document.getElementById('prod-stock').value = prod ? prod.stock_quantity || 0 : 0;
+  document.getElementById('prod-low').value = prod ? prod.low_stock_threshold || 10 : 10;
+  document.getElementById('prod-unit').value = prod ? prod.unit : 'Box';
+  document.getElementById('prod-icon').value = prod ? prod.icon || '' : '';
+  document.getElementById('prod-photo-data').value = prod ? prod.photo || '' : '';
+  // Show photo preview if exists
+  if (prod && prod.photo) {
+    document.getElementById('prod-photo-preview').src = prod.photo;
+    document.getElementById('photo-preview-wrap').style.display = 'block';
+    document.getElementById('photo-upload-area').style.display = 'none';
+  } else {
+    document.getElementById('photo-preview-wrap').style.display = 'none';
+    document.getElementById('photo-upload-area').style.display = 'block';
+  }
+  document.getElementById('prod-photo-input').value = '';
+  openModal('product-modal');
+}
+
+async function editProduct(id) {
+  const p = await dbGet('products', id);
+  openProductModal(p);
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Delete this product?')) return;
+  await dbDelete('products', id);
+  loadProducts();
+  showToast('🗑️ Product deleted');
+}
+
+async function saveProduct() {
+  const name = document.getElementById('prod-name').value.trim();
+  const cost = parseFloat(document.getElementById('prod-cost').value);
+  const sell = parseFloat(document.getElementById('prod-sell').value);
+  if (!name) { showToast('⚠️ Name required!'); return; }
+  if (isNaN(cost) || isNaN(sell)) { showToast('⚠️ Enter valid prices!'); return; }
+  const id = document.getElementById('prod-id').value;
+  const stockQty = parseInt(document.getElementById('prod-stock').value) || 0;
+  const data = {
+    name,
+    category: document.getElementById('prod-cat').value,
+    cost_price: cost,
+    selling_price: sell,
+    stock_quantity: stockQty,
+    unit: document.getElementById('prod-unit').value,
+    low_stock_threshold: parseInt(document.getElementById('prod-low').value) || 10,
+    icon: document.getElementById('prod-icon').value || '📦',
+    photo: document.getElementById('prod-photo-data').value || null,
+    created_at: new Date().toISOString()
+  };
+  let productId;
+  if (id) {
+    data.product_id = parseInt(id);
+    const existing = await dbGet('products', data.product_id);
+    data.created_at = existing.created_at;
+    await dbPut('products', data);
+    productId = data.product_id;
+  } else {
+    productId = await dbAdd('products', data);
+  }
+  // Sync truck inventory
+  const invRows = await dbGetByIndex('inventory', 'product_id', productId);
+  if (invRows.length > 0) {
+    invRows[0].quantity = stockQty;
+    invRows[0].last_updated = new Date().toISOString();
+    await dbPut('inventory', invRows[0]);
+  } else {
+    await dbAdd('inventory', { product_id: productId, quantity: stockQty, last_updated: new Date().toISOString() });
+  }
+  closeModal('product-modal');
+  loadProducts();
+  showToast('✅ Product saved!');
+}
+
+// ═══════════════════════════════════════════════
+// EXPENSES
+// ═══════════════════════════════════════════════
+async function loadExpenses() {
+  const date = document.getElementById('exp-filter-date').value;
+  const exps = date ? await dbGetByIndex('expenses','date',date) : await dbGetAll('expenses');
+  const list = document.getElementById('expenses-list');
+  const summaryDiv = document.getElementById('exp-summary-cards');
+  const total = exps.reduce((a,e)=>a+e.amount,0);
+  // By category
+  const byCat = {};
+  exps.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + e.amount; });
+  summaryDiv.innerHTML = `<div class="stat-card"><div class="stat-val color-red">QR ${total.toFixed(0)}</div><div class="stat-lbl">Total Expenses</div></div>
+    <div class="stat-card"><div class="stat-val">${exps.length}</div><div class="stat-lbl">Entries</div></div>`;
+  if (!exps.length) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💸</div><div class="empty-state-text">No expenses</div></div>'; return; }
+  exps.sort((a,b)=>b.expense_id-a.expense_id);
+  list.innerHTML = exps.map(e => `
+    <div class="card" style="margin-bottom:8px;">
+      <div class="flex-between">
+        <div>
+          <div style="font-weight:700;font-size:.95rem;">${e.category}</div>
+          <div style="font-size:.75rem;color:var(--text2);">${fmtDate(e.date)} ${e.notes?'· '+e.notes:''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:1rem;font-weight:800;color:var(--red);">QR ${e.amount.toFixed(2)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.expense_id})">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openExpenseModal() {
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-notes').value = '';
+  document.getElementById('exp-date').value = today();
+  openModal('expense-modal');
+}
+
+async function saveExpense() {
+  const amount = parseFloat(document.getElementById('exp-amount').value);
+  if (!amount || amount <= 0) { showToast('⚠️ Enter valid amount!'); return; }
+  await dbAdd('expenses', {
+    category: document.getElementById('exp-cat').value,
+    amount,
+    date: document.getElementById('exp-date').value,
+    notes: document.getElementById('exp-notes').value,
+    created_at: new Date().toISOString()
+  });
+  closeModal('expense-modal');
+  loadExpenses();
+  showToast('✅ Expense saved!');
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  await dbDelete('expenses', id);
+  loadExpenses();
+  showToast('🗑️ Deleted');
+}
+
+// ═══════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════
+function initReportDates() {
+  const t = today();
+  const from = new Date(); from.setDate(from.getDate() - 30);
+  document.getElementById('rep-date-from').value = from.toISOString().split('T')[0];
+  document.getElementById('rep-date-to').value = t;
+}
+
+function showReport(tab) {
+  currentReportTab = tab;
+  document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+  const tabs = document.querySelectorAll('.report-tab');
+  const tabMap = ['pl','daily','products','credit','lowstock'];
+  const idx = tabMap.indexOf(tab);
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  if (tab === 'pl') renderPLReport();
+  if (tab === 'daily') renderDailySales();
+  if (tab === 'products') renderTopProducts();
+  if (tab === 'credit') renderCreditBalances();
+  if (tab === 'lowstock') renderLowStock();
+}
+
+async function renderPLReport() {
+  const from = document.getElementById('rep-date-from').value;
+  const to = document.getElementById('rep-date-to').value;
+  const allInv = await dbGetAll('invoices');
+  const allItems = await dbGetAll('invoice_items');
+  const allExps = await dbGetAll('expenses');
+  const allProds = await dbGetAll('products');
+  const prodMap = {}; allProds.forEach(p=>prodMap[p.product_id]=p);
+  const filtered = allInv.filter(i => (!from||i.date>=from) && (!to||i.date<=to));
+  const filteredExps = allExps.filter(e => (!from||e.date>=from) && (!to||e.date<=to));
+  const totalRevenue = filtered.reduce((a,i)=>a+i.total_amount,0);
+  let totalCost = 0;
+  for (const inv of filtered) {
+    const items = allItems.filter(i=>i.invoice_id===inv.invoice_id);
+    for (const it of items) {
+      const p = prodMap[it.product_id];
+      if (p) totalCost += (it.cost||p.cost_price) * it.quantity;
+    }
+  }
+  const totalExp = filteredExps.reduce((a,e)=>a+e.amount,0);
+  const grossProfit = totalRevenue - totalCost;
+  const netProfit = grossProfit - totalExp;
+  const margin = totalRevenue > 0 ? (netProfit/totalRevenue*100).toFixed(1) : 0;
+  const cashSales = filtered.filter(i=>i.payment_type==='cash').reduce((a,i)=>a+i.total_amount,0);
+  const creditSales = filtered.filter(i=>i.payment_type!=='cash').reduce((a,i)=>a+i.total_amount,0);
+  // Expense breakdown
+  const expByCat = {};
+  filteredExps.forEach(e=>{ expByCat[e.category]=(expByCat[e.category]||0)+e.amount; });
+  let expRows = Object.entries(expByCat).map(([c,a])=>`<div class="summary-row"><span>· ${c}</span><span class="color-red">${fmtMoney(a)}</span></div>`).join('');
+  document.getElementById('report-content').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val">${fmtMoney(totalRevenue)}</div><div class="stat-lbl">Revenue</div></div>
+      <div class="stat-card green"><div class="stat-val">${fmtMoney(grossProfit)}</div><div class="stat-lbl">Gross Profit</div></div>
+      <div class="stat-card red"><div class="stat-val">${fmtMoney(totalExp)}</div><div class="stat-lbl">Expenses</div></div>
+      <div class="stat-card ${netProfit>=0?'green':'red'}"><div class="stat-val">${fmtMoney(netProfit)}</div><div class="stat-lbl">Net Profit</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Profit & Loss Summary</div>
+      <div class="summary-row"><span>💰 Total Revenue</span><span class="fw-800">${fmtMoney(totalRevenue)}</span></div>
+      <div class="summary-row"><span>· Cash Sales</span><span>${fmtMoney(cashSales)}</span></div>
+      <div class="summary-row"><span>· Credit Sales</span><span>${fmtMoney(creditSales)}</span></div>
+      <div class="summary-row"><span>🏭 Cost of Goods</span><span class="color-red">${fmtMoney(totalCost)}</span></div>
+      <div class="summary-row fw-800"><span>📈 Gross Profit</span><span class="${grossProfit>=0?'color-green':'color-red'}">${fmtMoney(grossProfit)}</span></div>
+      <div class="divider"></div>
+      <div class="summary-row"><span>💸 Total Expenses</span><span class="color-red">${fmtMoney(totalExp)}</span></div>
+      ${expRows}
+      <div class="divider"></div>
+      <div class="summary-row total"><span>🏆 NET PROFIT</span><span class="${netProfit>=0?'color-green':'color-red'}">${fmtMoney(netProfit)}</span></div>
+      <div class="summary-row"><span>Net Margin</span><span>${margin}%</span></div>
+      <div class="summary-row"><span>Invoices</span><span>${filtered.length}</span></div>
+    </div>`;
+}
+
+async function renderDailySales() {
+  const from = document.getElementById('rep-date-from').value;
+  const to = document.getElementById('rep-date-to').value;
+  const allInv = await dbGetAll('invoices');
+  const filtered = allInv.filter(i=>(!from||i.date>=from)&&(!to||i.date<=to));
+  const byDay = {};
+  filtered.forEach(i=>{ if(!byDay[i.date]) byDay[i.date]={count:0,total:0,cash:0,credit:0}; byDay[i.date].count++; byDay[i.date].total+=i.total_amount; if(i.payment_type==='cash') byDay[i.date].cash+=i.total_amount; else byDay[i.date].credit+=i.total_amount; });
+  const days = Object.entries(byDay).sort((a,b)=>b[0].localeCompare(a[0]));
+  if (!days.length) { document.getElementById('report-content').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><div class="empty-state-text">No data</div></div>'; return; }
+  document.getElementById('report-content').innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Invoices</th><th>Cash</th><th>Credit</th><th>Total</th></tr></thead><tbody>` +
+    days.map(([d,v])=>`<tr><td>${fmtDate(d)}</td><td>${v.count}</td><td>${fmtMoney(v.cash)}</td><td>${fmtMoney(v.credit)}</td><td class="fw-800">${fmtMoney(v.total)}</td></tr>`).join('') +
+    `</tbody></table></div>`;
+}
+
+async function renderTopProducts() {
+  const from = document.getElementById('rep-date-from').value;
+  const to = document.getElementById('rep-date-to').value;
+  const allInv = await dbGetAll('invoices');
+  const allItems = await dbGetAll('invoice_items');
+  const allProds = await dbGetAll('products');
+  const prodMap = {}; allProds.forEach(p=>prodMap[p.product_id]=p);
+  const filteredIds = new Set(allInv.filter(i=>(!from||i.date>=from)&&(!to||i.date<=to)).map(i=>i.invoice_id));
+  const filteredItems = allItems.filter(i=>filteredIds.has(i.invoice_id));
+  const byProd = {};
+  filteredItems.forEach(it=>{ if(!byProd[it.product_id]) byProd[it.product_id]={qty:0,revenue:0,cost:0}; byProd[it.product_id].qty+=it.quantity; byProd[it.product_id].revenue+=it.total; const p=prodMap[it.product_id]; if(p) byProd[it.product_id].cost+=(it.cost||p.cost_price)*it.quantity; });
+  const rows = Object.entries(byProd).map(([id,v])=>({...v,name:prodMap[id]?.name||'?',icon:prodMap[id]?.icon||'📦',profit:v.revenue-v.cost})).sort((a,b)=>b.revenue-a.revenue);
+  if (!rows.length) { document.getElementById('report-content').innerHTML = '<div class="empty-state"><div>📦</div><div>No data</div></div>'; return; }
+  document.getElementById('report-content').innerHTML = `<div class="table-wrap"><table class="data-table"><thead><tr><th>Product</th><th>Qty</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>` +
+    rows.map(r=>`<tr><td>${r.icon} ${r.name}</td><td>${r.qty}</td><td>${fmtMoney(r.revenue)}</td><td class="${r.profit>=0?'color-green':'color-red'} fw-800">${fmtMoney(r.profit)}</td></tr>`).join('') +
+    `</tbody></table></div>`;
+}
+
+async function renderCreditBalances() {
+  const custs = await dbGetAll('customers');
+  const withCredit = custs.filter(c=>c.credit_balance>0).sort((a,b)=>b.credit_balance-a.credit_balance);
+  const total = custs.reduce((a,c)=>a+c.credit_balance,0);
+  document.getElementById('report-content').innerHTML = `
+    <div class="stat-grid" style="margin-bottom:12px;">
+      <div class="stat-card red"><div class="stat-val">${fmtMoney(total)}</div><div class="stat-lbl">Total Credit</div></div>
+      <div class="stat-card"><div class="stat-val">${withCredit.length}</div><div class="stat-lbl">Customers Owing</div></div>
+    </div>` +
+    (withCredit.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Customer</th><th>Phone</th><th>Balance</th></tr></thead><tbody>` +
+    withCredit.map(c=>`<tr><td>${c.name}</td><td>${c.phone||'-'}</td><td class="color-red fw-800">${fmtMoney(c.credit_balance)}</td></tr>`).join('') +
+    `</tbody></table></div>` : '<div class="alert alert-success">✅ All customers have cleared their credit!</div>');
+}
+
+async function renderLowStock() {
+  const prods = await dbGetAll('products');
+  const inv = await dbGetAll('inventory');
+  const invMap = {}; inv.forEach(i=>invMap[i.product_id]=i.quantity);
+  const low = prods.map(p=>({...p,qty:invMap[p.product_id]||0})).filter(p=>p.qty<=(p.low_stock_threshold||10));
+  const out = low.filter(p=>p.qty<=0);
+  document.getElementById('report-content').innerHTML = (out.length?`<div class="alert alert-warning">🚨 ${out.length} products OUT OF STOCK</div>`:'') +
+    (low.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Threshold</th><th>Status</th></tr></thead><tbody>` +
+    low.map(p=>`<tr><td>${p.icon||'📦'} ${p.name}</td><td>${p.category}</td><td class="${p.qty<=0?'color-red':'color-gold'} fw-800">${p.qty}</td><td>${p.low_stock_threshold||10}</td><td>${p.qty<=0?'<span class="badge badge-red">OUT</span>':'<span class="badge badge-gold">LOW</span>'}</td></tr>`).join('') +
+    `</tbody></table></div>` : '<div class="alert alert-success">✅ All products have sufficient stock</div>');
+}
+
+// ═══════════════════════════════════════════════
+// PRINT — A4 INVOICE (New Fair Way Trading style)
+// ═══════════════════════════════════════════════
+function printA4Invoice(invoice, items, customer, prodMap) {
+  const s = settings;
+  const invNum = String(invoice.invoice_id).padStart(4, '0');
+  const rows = items.map((it, i) => {
+    const p = prodMap[it.product_id];
+    const priceParts = splitQR(it.price);
+    const totalParts = splitQR(it.total);
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="desc-col">${p ? p.name : '?'}</td>
+      <td>${it.quantity} ${p?.unit||''}</td>
+      <td>${priceParts.qrs}</td><td>${priceParts.dh}</td>
+      <td>${totalParts.qrs}</td><td>${totalParts.dh}</td>
+    </tr>`;
+  });
+  // Fill empty rows to 17
+  for (let i = items.length; i < 17; i++) {
+    rows.push(`<tr><td>${i+1}</td><td class="desc-col"></td><td></td><td></td><td></td><td></td><td></td></tr>`);
+  }
+  const totalParts = splitQR(invoice.total_amount);
+  const subtotal = items.reduce((a,i)=>a+i.total,0);
+  const html = `
+  <div class="a4-invoice">
+    <div class="a4-header">
+      <div class="a4-header-left">
+        <div style="font-size:22px;font-weight:900;color:#1a237e;line-height:1.1;">NEW FAIR WAY TRADING</div>
+        <div class="a4-contact-row"><span class="icon">📍</span> ${s.address||'Dohatna Logistic Park, Umm Shaharaine-1, Doha- Qatar'}</div>
+        <div class="a4-contact-row"><span class="icon">📞</span> ${s.phone1||'+974 7004 3377'}</div>
+        <div class="a4-contact-row"><span class="icon">📞</span> ${s.phone2||'+974 7204 3377'}</div>
+        <div class="a4-contact-row"><span class="icon">✉️</span> ${s.email||'fairway.fmcg@gmail.com'}</div>
+      </div>
+      <div class="a4-logo-wrap">
+        <div class="a4-logo-circle" style="width:80px;height:80px;border-radius:50%;border:2px solid #1a237e;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:2rem;">🏪</div>
+      </div>
+      <div class="a4-header-right" style="direction:rtl;">
+        <div style="font-size:20px;font-weight:900;color:#1a237e;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
+        <div class="a4-contact-row" style="justify-content:flex-end;"><span>حديقة دوحتنا اللوجستية، أم شهرين-١، الدوحة- قطر</span> <span class="icon">📍</span></div>
+        <div class="a4-contact-row" style="justify-content:flex-end;"><span>جوال : ${s.phone1||'+974 7004 3377'}</span> <span class="icon">📞</span></div>
+        <div class="a4-contact-row" style="justify-content:flex-end;"><span>جوال : ${s.phone2||'+974 7204 3377'}</span> <span class="icon">📞</span></div>
+        <div class="a4-contact-row" style="justify-content:flex-end;"><span>${s.email||'fairway.fmcg@gmail.com'}</span> <span class="icon">✉️</span></div>
+      </div>
+    </div>
+    <div class="a4-inv-title">
+      <div style="display:flex;justify-content:center;align-items:center;gap:16px;">
+        <div class="a4-inv-title-ar">فـاتورة نقدا/ على الحساب</div>
+        <div class="a4-inv-title-en">CASH/CREDIT INVOICE</div>
+      </div>
+    </div>
+    <div class="a4-meta">
+      <div><strong>No.:</strong> ${invNum}</div>
+      <div style="direction:rtl;"><strong>التاريخ &nbsp; Date.&nbsp;</strong>${fmtDate(invoice.date)}</div>
+    </div>
+    <div class="a4-customer">
+      <div><strong>Customer Name: </strong>${customer?.name||'_______________________'} ${customer?.phone?'· '+customer.phone:''}</div>
+      <div style="direction:rtl;"><strong>السيد / السادة</strong></div>
+    </div>
+    <table class="a4-table">
+      <thead>
+        <tr>
+          <th rowspan="2">S.No.<br>الرقم</th>
+          <th rowspan="2" style="min-width:160px;">DESCRIPTION<br>التفـاصيـل</th>
+          <th rowspan="2">QTY<br>الكمية</th>
+          <th colspan="2">Unit Price<br>سعر الوحدة</th>
+          <th colspan="2">Total<br>المبلـغ</th>
+        </tr>
+        <tr>
+          <th>Qrs ريال</th><th>Dh. درهم</th>
+          <th>Qrs ريال</th><th>Dh. درهم</th>
+        </tr>
+      </thead>
+      <tbody>${rows.join('')}</tbody>
+      <tfoot>
+        <tr class="a4-total-row">
+          <td colspan="5" style="text-align:right;"><strong>TOTAL QRs المجموع</strong></td>
+          <td><strong>${totalParts.qrs}</strong></td>
+          <td><strong>${totalParts.dh}</strong></td>
+        </tr>
+        ${invoice.discount>0?`<tr><td colspan="5" style="text-align:right;">Discount خصم</td><td colspan="2" style="color:red;">- QR ${invoice.discount.toFixed(2)}</td></tr>`:''}
+        ${invoice.payment_type!=='cash'?`<tr><td colspan="5" style="text-align:right;font-size:10px;">Payment Type / Cash Paid</td><td colspan="2" style="font-size:10px;">${invoice.payment_type.toUpperCase()} / QR ${invoice.cash_paid.toFixed(2)}</td></tr>`:''}
+      </tfoot>
+    </table>
+    <div class="a4-footer">
+      <div><strong>Receiver's Signature</strong><br><br>_______________________</div>
+      <div style="text-align:right;"><strong>Salesman's Signature</strong><br><br>_______________________</div>
+    </div>
+  </div>`;
+  const area = document.getElementById('print-area');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  setTimeout(() => { window.print(); area.style.display = 'none'; }, 300);
+}
+
+function splitQR(amount) {
+  const n = parseFloat(amount || 0);
+  const qrs = Math.floor(n);
+  const dh = Math.round((n - qrs) * 100);
+  return { qrs: qrs.toString(), dh: dh.toString().padStart(2,'0') };
+}
+
+// ═══════════════════════════════════════════════
+// PRINT — THERMAL RECEIPT
+// ═══════════════════════════════════════════════
+function printThermalReceipt(invoice, items, customer, prodMap) {
+  const s = settings;
+  const invNum = String(invoice.invoice_id).padStart(4, '0');
+  const itemRows = items.map(it => {
+    const p = prodMap[it.product_id];
+    return `<div class="thermal-row"><span>${p?.name||'?'} x${it.quantity}</span><span>QR ${it.total.toFixed(2)}</span></div>`;
+  }).join('');
+  const html = `<div class="thermal-receipt">
+    <div class="thermal-logo">${s.company||'NEW FAIR WAY TRADING'}</div>
+    <div class="thermal-center" style="font-size:9px;">${s.address||'Doha, Qatar'}</div>
+    <div class="thermal-center" style="font-size:9px;">${s.phone1||''} | ${s.phone2||''}</div>
+    <hr class="thermal-divider">
+    <div class="thermal-row"><span>Invoice #</span><span>${invNum}</span></div>
+    <div class="thermal-row"><span>Date:</span><span>${fmtDate(invoice.date)}</span></div>
+    <div class="thermal-row"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
+    <div class="thermal-row"><span>Payment:</span><span>${invoice.payment_type.toUpperCase()}</span></div>
+    <hr class="thermal-divider">
+    ${itemRows}
+    <hr class="thermal-divider">
+    ${invoice.discount>0?`<div class="thermal-row"><span>Discount:</span><span>-QR ${invoice.discount.toFixed(2)}</span></div>`:''}
+    <div class="thermal-row thermal-total"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
+    ${invoice.payment_type!=='cash'?`<div class="thermal-row"><span>Cash Paid:</span><span>QR ${invoice.cash_paid.toFixed(2)}</span></div><div class="thermal-row"><span>On Credit:</span><span>QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</span></div>`:''}
+    <hr class="thermal-divider">
+    <div class="thermal-center">Thank You! شكراً لكم</div>
+    <div class="thermal-center" style="font-size:9px;">${s.email||'fairway.fmcg@gmail.com'}</div>
+  </div>`;
+  const area = document.getElementById('print-area');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  // For thermal, use a narrow print style
+  const style = document.createElement('style');
+  style.id = 'thermal-print-style';
+  style.textContent = `@media print { @page { size: 80mm auto; margin: 2mm; } body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: fixed; inset: 0; background: #fff; } }`;
+  document.head.appendChild(style);
+  setTimeout(() => {
+    window.print();
+    area.style.display = 'none';
+    const s = document.getElementById('thermal-print-style');
+    if (s) s.remove();
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════
+// PHOTO UPLOAD
+// ═══════════════════════════════════════════════
+function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('⚠️ Photo too large! Max 5MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Compress image before storing
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX = 600;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+      else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('prod-photo-data').value = compressed;
+      document.getElementById('prod-photo-preview').src = compressed;
+      document.getElementById('photo-preview-wrap').style.display = 'block';
+      document.getElementById('photo-upload-area').style.display = 'none';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeProductPhoto() {
+  document.getElementById('prod-photo-data').value = '';
+  document.getElementById('prod-photo-preview').src = '';
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-upload-area').style.display = 'block';
+  document.getElementById('prod-photo-input').value = '';
+}
+
+// ═══════════════════════════════════════════════
+// DATA EXPORT / RESET
+// ═══════════════════════════════════════════════
+async function exportData() {
+  const data = {
+    customers: await dbGetAll('customers'),
+    products: await dbGetAll('products'),
+    inventory: await dbGetAll('inventory'),
+    invoices: await dbGetAll('invoices'),
+    invoice_items: await dbGetAll('invoice_items'),
+    expenses: await dbGetAll('expenses'),
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fairway-data-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Data exported!');
+}
+
+function confirmResetData() {
+  if (prompt('Type DELETE to confirm reset all data:') === 'DELETE') {
+    indexedDB.deleteDatabase(DB_NAME);
+    showToast('🗑️ Data reset. Reloading...');
+    setTimeout(() => location.reload(), 1500);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SEED DATA (first run)
+// ═══════════════════════════════════════════════
+async function seedIfEmpty() {
+  const prods = await dbGetAll('products');
+  if (prods.length > 0) return;
+  const sampleProducts = [
+    { name: "Lay's Classic 28g", category: 'Chips', cost_price: 1.5, selling_price: 2.5, stock_quantity: 120, unit: 'Piece', low_stock_threshold: 20, icon: '🥔', created_at: new Date().toISOString() },
+    { name: "Lay's Paprika 170g", category: 'Chips', cost_price: 5.0, selling_price: 8.0, stock_quantity: 80, unit: 'Piece', low_stock_threshold: 15, icon: '🥔', created_at: new Date().toISOString() },
+    { name: "Pringles Original 165g", category: 'Chips', cost_price: 8.0, selling_price: 12.0, stock_quantity: 60, unit: 'Piece', low_stock_threshold: 10, icon: '🍟', created_at: new Date().toISOString() },
+    { name: "Act II Butter Popcorn", category: 'Popcorn', cost_price: 2.0, selling_price: 3.5, stock_quantity: 200, unit: 'Piece', low_stock_threshold: 30, icon: '🍿', created_at: new Date().toISOString() },
+    { name: "Smartfood White Cheddar", category: 'Popcorn', cost_price: 4.0, selling_price: 6.5, stock_quantity: 50, unit: 'Piece', low_stock_threshold: 10, icon: '🍿', created_at: new Date().toISOString() },
+    { name: "Cheetos Crunchy 227g", category: 'Chips', cost_price: 6.5, selling_price: 10.0, stock_quantity: 45, unit: 'Piece', low_stock_threshold: 10, icon: '🧡', created_at: new Date().toISOString() },
+    { name: "Oreo Original 137g", category: 'Crackers', cost_price: 4.0, selling_price: 6.5, stock_quantity: 100, unit: 'Piece', low_stock_threshold: 20, icon: '🍪', created_at: new Date().toISOString() },
+    { name: "Snickers Bar 50g", category: 'Chocolate', cost_price: 2.5, selling_price: 4.0, stock_quantity: 150, unit: 'Piece', low_stock_threshold: 25, icon: '🍫', created_at: new Date().toISOString() },
+  ];
+  for (const p of sampleProducts) {
+    const id = await dbAdd('products', p);
+    await dbAdd('inventory', { product_id: id, quantity: p.stock_quantity, last_updated: new Date().toISOString() });
+  }
+  const sampleCustomers = [
+    { name: 'Al Rayyan Supermarket', contact_person: 'Ahmed Ali', phone: '+974 4488 1122', address: 'Al Rayyan, Doha', credit_balance: 0, created_at: new Date().toISOString() },
+    { name: 'City Center Kiosk', contact_person: 'Mohammed Hassan', phone: '+974 5566 7788', address: 'City Center Mall, Doha', credit_balance: 150, created_at: new Date().toISOString() },
+    { name: 'Pearl Island Shop', contact_person: 'Fatima Al-Qassim', phone: '+974 5544 9900', address: 'The Pearl, Doha', credit_balance: 0, created_at: new Date().toISOString() },
+  ];
+  for (const c of sampleCustomers) await dbAdd('customers', c);
+  showToast('✅ Sample data loaded!');
+}
+
+// ═══════════════════════════════════════════════
+// PIN LOCK
+// ═══════════════════════════════════════════════
+const DEFAULT_PIN = '1234';
+let pinReady = false;
+
+function initPinPad() {
+  // Auto-submit when 4 digits entered
+  const input = document.getElementById('pin-input');
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submitPin(); });
+}
+
+function onPinInput(el) {
+  // Only allow numbers
+  el.value = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+  document.getElementById('pin-error').textContent = '';
+  // Auto submit when 4 digits entered
+  if (el.value.length === 4) setTimeout(submitPin, 200);
+}
+
+async function submitPin() {
+  const input = document.getElementById('pin-input');
+  const entered = input.value;
+  if (entered.length < 4) {
+    document.getElementById('pin-error').textContent = '⚠️ Please enter 4 digits';
+    return;
+  }
+  const storedPin = await dbGet('settings', 'app_pin');
+  const correctPin = storedPin ? storedPin.value : DEFAULT_PIN;
+  if (entered === correctPin) {
+    document.getElementById('pin-screen').classList.add('hidden');
+    if (pinReady) showScreen('home-screen');
+  } else {
+    document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
+    input.value = '';
+    input.focus();
+  }
+}
+
+function pinForgot() {
+  const answer = prompt('Enter master reset password:');
+  if (answer === '7786') {
+    const newPin = prompt('Enter new 4-digit PIN:');
+    if (newPin && /^\d{4}$/.test(newPin)) {
+      dbPut('settings', { key: 'app_pin', value: newPin }).then(() => {
+        alert('✅ PIN changed to: ' + newPin);
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-error').textContent = '';
+      });
+    } else {
+      alert('PIN must be exactly 4 digits!');
+    }
+  } else {
+    alert('❌ Wrong password.');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+async function init() {
+  try {
+    await initDB();
+    await loadSettingsObj();
+    await seedIfEmpty();
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
+    // Hide loading spinner — but show PIN screen
+    document.getElementById('loading').style.display = 'none';
+    pinReady = true;
+    // PIN screen is already showing — wait for user to enter PIN
+  } catch (e) {
+    console.error('Init error:', e);
+    document.getElementById('loading').innerHTML = '<div style="color:#ff6b6b;font-size:1rem;padding:20px;">⚠️ Error loading app. Please refresh.</div>';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initPinPad();
+  init();
+});
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
