@@ -1864,6 +1864,19 @@ async function viewInvoice(id) {
   openModal('inv-detail-modal');
 }
 
+async function reprintInvoice() {
+  if (!selectedInvoiceId) return;
+  const inv = await dbGet('invoices', selectedInvoiceId);
+  const items = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
+  const prods = await dbGetAll('products');
+  const custs = await dbGetAll('customers');
+  const prodMap = {}; prods.forEach(p=>prodMap[p.product_id]=p);
+  const custMap = {}; custs.forEach(c=>custMap[c.customer_id]=c);
+  const cust = custMap[inv.customer_id] || null;
+  closeModal('inv-detail-modal');
+  printA4Invoice(inv, items, cust, prodMap);
+}
+
 async function editInvoice() {
   if (!selectedInvoiceId) return;
   const inv = await dbGet('invoices', selectedInvoiceId);
@@ -1991,17 +2004,6 @@ async function printCreditSettlement(customerId, amountPaid) {
     </div>
   </div>`;
   showInvoiceViewer(html, 'a4');
-}
-  if (!selectedInvoiceId) return;
-  const inv = await dbGet('invoices', selectedInvoiceId);
-  const items = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
-  const prods = await dbGetAll('products');
-  const custs = await dbGetAll('customers');
-  const prodMap = {}; prods.forEach(p=>prodMap[p.product_id]=p);
-  const custMap = {}; custs.forEach(c=>custMap[c.customer_id]=c);
-  const cust = custMap[inv.customer_id] || null;
-  closeModal('inv-detail-modal');
-  printA4Invoice(inv, items, cust, prodMap);
 }
 
 // ═══════════════════════════════════════════════
