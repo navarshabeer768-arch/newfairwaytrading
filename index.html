@@ -446,14 +446,27 @@ input[type=number]{-moz-appearance:textfield;}
         <div class="summary-row total"><span>TOTAL</span><span id="s-total">QR 0.00</span></div>
       </div>
       <!-- Payment -->
-      <div class="payment-tabs">
+      <div class="payment-tabs" style="flex-wrap:wrap;">
         <button class="pay-tab active" id="tab-cash" onclick="setPayType('cash')">💵 CASH</button>
         <button class="pay-tab" id="tab-credit" onclick="setPayType('credit')">📋 CREDIT</button>
         <button class="pay-tab" id="tab-partial" onclick="setPayType('partial')">🔄 PARTIAL</button>
+        <button class="pay-tab" id="tab-cheque" onclick="setPayType('cheque')">🏦 CHEQUE</button>
       </div>
       <div id="partial-cash-row" style="display:none;" class="form-group">
         <label class="form-label">Cash Paid (QR)</label>
         <input type="number" class="form-input" id="pos-cash-paid" value="0" oninput="updateCartSummary()">
+      </div>
+      <div id="cheque-fields" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="form-group">
+            <label class="form-label">Cheque Number</label>
+            <input type="text" class="form-input" id="pos-cheque-num" placeholder="CHQ-001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cheque Date</label>
+            <input type="date" class="form-input" id="pos-cheque-date">
+          </div>
+        </div>
       </div>
       <!-- Print Option -->
       <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
@@ -602,7 +615,19 @@ input[type=number]{-moz-appearance:textfield;}
       <div id="inv-detail-content"></div>
       <div class="btn-row mt-12">
         <button class="btn btn-outline btn-block" onclick="closeModal('inv-detail-modal')">Close</button>
+        <button class="btn btn-warning btn-block" onclick="editInvoice()">✏️ Edit</button>
         <button class="btn btn-primary btn-block" onclick="reprintInvoice()">🖨️ Reprint</button>
+      </div>
+    </div>
+  </div>
+  <!-- Edit Invoice Modal -->
+  <div class="modal-overlay" id="edit-inv-modal">
+    <div class="modal">
+      <div class="modal-title">✏️ Edit Invoice</div>
+      <div id="edit-inv-content"></div>
+      <div class="btn-row mt-12">
+        <button class="btn btn-outline btn-block" onclick="closeModal('edit-inv-modal')">Cancel</button>
+        <button class="btn btn-success btn-block" onclick="saveEditedInvoice()">💾 Save Changes</button>
       </div>
     </div>
   </div>
@@ -1255,6 +1280,9 @@ async function loadPOSScreen() {
   document.getElementById('pos-discount').value = 0;
   document.getElementById('pos-cash-paid').value = 0;
   document.getElementById('pos-credit-info').style.display = 'none';
+  document.getElementById('cheque-fields').style.display = 'none';
+  if (document.getElementById('pos-cheque-num')) document.getElementById('pos-cheque-num').value = '';
+  if (document.getElementById('pos-cheque-date')) document.getElementById('pos-cheque-date').value = '';
   renderCart();
   // Load customers
   const custs = await dbGetAll('customers');
@@ -1321,6 +1349,28 @@ function filterProducts() {
   renderPOSProducts(prods);
 }
 
+function setCartUOM(idx, uom) {
+  const item = cart[idx];
+  item.uom = uom;
+  // Box = full price, Bag = price/4 (1 box = 4 bags)
+  if (uom === 'bag') {
+    item.price = parseFloat((item.basePrice / 4).toFixed(2));
+    item.displayUnit = 'Bag';
+  } else {
+    item.price = item.basePrice;
+    item.displayUnit = item.unit || 'Box';
+  }
+  if (!item.isFOC) item.total = item.quantity * item.price;
+  renderCart();
+}
+
+function toggleFOC(idx, checked) {
+  const item = cart[idx];
+  item.isFOC = checked;
+  item.total = checked ? 0 : item.quantity * item.price;
+  renderCart();
+}
+
 async function addToCart(productId) {
   const p = (window._posProducts || []).find(x => x.product_id === productId);
   if (!p) return;
@@ -1329,9 +1379,23 @@ async function addToCart(productId) {
   if (existing) {
     if (existing.quantity >= p.truckQty) { showToast('⚠️ Not enough stock!'); return; }
     existing.quantity++;
-    existing.total = existing.quantity * existing.price;
+    existing.total = existing.isFOC ? 0 : existing.quantity * existing.price;
   } else {
-    cart.push({ product_id: productId, name: p.name, price: p.selling_price, cost: p.cost_price, quantity: 1, total: p.selling_price, icon: p.icon || '📦', unit: p.unit || '', maxQty: p.truckQty });
+    cart.push({
+      product_id: productId,
+      name: p.name,
+      price: p.selling_price,
+      basePrice: p.selling_price,
+      cost: p.cost_price,
+      quantity: 1,
+      total: p.selling_price,
+      icon: p.icon || '📦',
+      unit: p.unit || 'Box',
+      displayUnit: p.unit || 'Box',
+      uom: 'box',
+      isFOC: false,
+      maxQty: p.truckQty
+    });
   }
   renderCart();
 }
@@ -1357,19 +1421,31 @@ function renderCart() {
   if (cart.length === 0) { section.style.display = 'none'; updateCartSummary(); return; }
   section.style.display = 'block';
   itemsDiv.innerHTML = cart.map((item, i) => `
-    <div class="cart-item">
-      <span style="font-size:1.2rem">${item.icon}</span>
-      <div style="flex:1;min-width:0;">
-        <div class="cart-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
-        <div class="cart-item-price">${fmtMoney(item.price)} each</div>
+    <div class="cart-item" style="flex-direction:column;gap:6px;padding:10px;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <span style="font-size:1.2rem">${item.icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="cart-item-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+          <div class="cart-item-price">${item.isFOC ? '<span style="color:var(--green);font-weight:700;">FREE (FOC)</span>' : fmtMoney(item.price)+' each'}</div>
+        </div>
+        <button class="cart-item-del" onclick="removeFromCart(${i})">🗑</button>
       </div>
-      <div class="qty-ctrl">
-        <button class="qty-btn" onclick="updateQty(${i},-1)">−</button>
-        <span class="qty-val">${item.quantity}</span>
-        <button class="qty-btn" onclick="updateQty(${i},1)">+</button>
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="updateQty(${i},-1)">−</button>
+          <span class="qty-val">${item.quantity}</span>
+          <button class="qty-btn" onclick="updateQty(${i},1)">+</button>
+        </div>
+        <select onchange="setCartUOM(${i},this.value)" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:.8rem;background:var(--surface);">
+          <option value="box" ${item.uom==='box'?'selected':''}>📦 Box (×1)</option>
+          <option value="bag" ${item.uom==='bag'?'selected':''}>🛍 Bag (÷4)</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" ${item.isFOC?'checked':''} onchange="toggleFOC(${i},this.checked)" style="width:16px;height:16px;">
+          FOC
+        </label>
+        <div class="cart-item-total">${item.isFOC?'FREE':fmtMoney(item.total)}</div>
       </div>
-      <div class="cart-item-total">${fmtMoney(item.total)}</div>
-      <button class="cart-item-del" onclick="removeFromCart(${i})">🗑</button>
     </div>`).join('');
   updateCartSummary();
 }
@@ -1391,10 +1467,12 @@ function getCartTotal() {
 
 function setPayType(type) {
   payType = type;
-  ['cash','credit','partial'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === type);
+  ['cash','credit','partial','cheque'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('active', t === type);
   });
   document.getElementById('partial-cash-row').style.display = type === 'partial' ? 'block' : 'none';
+  document.getElementById('cheque-fields').style.display = type === 'cheque' ? 'block' : 'none';
 }
 
 function setPrintType(type) {
@@ -1433,34 +1511,52 @@ async function completeOrder() {
   let cashPaid = total;
   if (payType === 'credit') cashPaid = 0;
   if (payType === 'partial') cashPaid = parseFloat(document.getElementById('pos-cash-paid').value) || 0;
+  if (payType === 'cheque') cashPaid = total; // cheque = full payment
+  // Cheque details
+  const chequeNum = payType === 'cheque' ? document.getElementById('pos-cheque-num').value : null;
+  const chequeDate = payType === 'cheque' ? document.getElementById('pos-cheque-date').value : null;
   // Validation
   if (payType === 'credit' && !custId) { showToast('⚠️ Select customer for credit sale!'); return; }
   if (payType === 'partial' && cashPaid >= total) { showToast('⚠️ Partial pay must be less than total. Use Cash.'); return; }
+  if (payType === 'cheque' && !chequeNum) { showToast('⚠️ Enter cheque number!'); return; }
+  // Qatar time
+  const now = new Date();
+  const qatarTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Qatar' }));
+  const dateStr = qatarTime.toISOString().split('T')[0];
+  const timeStr = qatarTime.toTimeString().slice(0,5);
   // Save invoice
   const invId = await dbAdd('invoices', {
     customer_id: custId,
-    date: today(),
+    date: dateStr,
+    time: timeStr,
     total_amount: total,
     payment_type: payType,
     cash_paid: cashPaid,
     discount: discount,
-    created_at: new Date().toISOString()
+    cheque_number: chequeNum,
+    cheque_date: chequeDate,
+    created_at: now.toISOString()
   });
   // Save items & update inventory
   for (const item of cart) {
+    // Calculate actual stock units (bags = 1/4 box)
+    const stockUnits = item.uom === 'bag' ? Math.ceil(item.quantity / 4) : item.quantity;
     await dbAdd('invoice_items', {
       invoice_id: invId,
       product_id: item.product_id,
       quantity: item.quantity,
+      display_unit: item.displayUnit || item.unit,
+      uom: item.uom || 'box',
       price: item.price,
       cost: item.cost,
-      total: item.total
+      total: item.total,
+      is_foc: item.isFOC ? 1 : 0
     });
     // Update truck inventory
     const invRows = await dbGetByIndex('inventory', 'product_id', item.product_id);
     if (invRows.length > 0) {
       const inv = invRows[0];
-      inv.quantity = Math.max(0, inv.quantity - item.quantity);
+      inv.quantity = Math.max(0, inv.quantity - stockUnits);
       inv.last_updated = new Date().toISOString();
       await dbPut('inventory', inv);
     }
@@ -1484,7 +1580,6 @@ async function completeOrder() {
   if (printType === 'a4') printA4Invoice(invoice, items, customer, prodMap);
   else if (printType === 'thermal') printThermalReceipt(invoice, items, customer, prodMap);
   showToast('✅ Order #' + invId + ' completed!');
-  // Refresh products stock in POS
   await loadPOSScreen();
 }
 
@@ -1694,13 +1789,19 @@ async function saveCreditPayment() {
   const amount = parseFloat(document.getElementById('cp-amount').value) || 0;
   if (amount <= 0) { showToast('⚠️ Enter valid amount!'); return; }
   const cust = await dbGet('customers', custId);
+  const prevBalance = cust.credit_balance;
   const newBalance = Math.max(0, cust.credit_balance - amount);
   cust.credit_balance = newBalance;
   await dbPut('customers', cust);
   await dbAdd('credit_payments', { customer_id: custId, amount, date: today(), created_at: new Date().toISOString() });
   closeModal('credit-pay-modal');
+  closeModal('cust-detail-modal');
   loadCustomers();
   showToast(`✅ QR ${amount.toFixed(2)} recorded! Balance: QR ${newBalance.toFixed(2)}`);
+  // Print settlement receipt
+  if (confirm('Print credit settlement receipt?')) {
+    await printCreditSettlement(custId, amount);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1763,7 +1864,134 @@ async function viewInvoice(id) {
   openModal('inv-detail-modal');
 }
 
-async function reprintInvoice() {
+async function editInvoice() {
+  if (!selectedInvoiceId) return;
+  const inv = await dbGet('invoices', selectedInvoiceId);
+  const items = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
+  const prods = await dbGetAll('products');
+  const prodMap = {}; prods.forEach(p => prodMap[p.product_id] = p);
+  closeModal('inv-detail-modal');
+  let itemsHtml = items.map((it, i) => {
+    const p = prodMap[it.product_id];
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;">
+      <div style="flex:1;font-size:.85rem;font-weight:600;">${p?.name||'?'}</div>
+      <input type="number" value="${it.quantity}" min="0" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;" data-item-id="${it.item_id}" data-product-id="${it.product_id}" data-old-qty="${it.quantity}" class="edit-item-qty">
+      <span style="font-size:.75rem;color:var(--text2);">${it.display_unit||it.uom||p?.unit||''}</span>
+      <span style="font-size:.85rem;font-weight:700;">${fmtMoney(it.price)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('edit-inv-content').innerHTML = `
+    <div class="alert alert-warning">⚠️ Editing will automatically update truck inventory.</div>
+    <div class="form-group"><label class="form-label">Discount (QR)</label>
+      <input type="number" class="form-input" id="edit-inv-discount" value="${inv.discount||0}">
+    </div>
+    <div class="section-title">Items</div>
+    ${itemsHtml}
+    <div style="font-size:.75rem;color:var(--text2);margin-top:8px;">Set quantity to 0 to remove an item</div>`;
+  openModal('edit-inv-modal');
+}
+
+async function saveEditedInvoice() {
+  if (!selectedInvoiceId) return;
+  const inv = await dbGet('invoices', selectedInvoiceId);
+  const oldItems = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
+  const qtyInputs = document.querySelectorAll('.edit-item-qty');
+  let newTotal = 0;
+  for (const input of qtyInputs) {
+    const itemId = parseInt(input.getAttribute('data-item-id'));
+    const productId = parseInt(input.getAttribute('data-product-id'));
+    const oldQty = parseInt(input.getAttribute('data-old-qty'));
+    const newQty = parseInt(input.value) || 0;
+    const oldItem = oldItems.find(i => i.item_id === itemId);
+    if (!oldItem) continue;
+    const diff = newQty - oldQty; // positive = more stock used, negative = stock returned
+    // Update inventory
+    const invRows = await dbGetByIndex('inventory', 'product_id', productId);
+    if (invRows.length > 0) {
+      invRows[0].quantity = Math.max(0, invRows[0].quantity - diff);
+      invRows[0].last_updated = new Date().toISOString();
+      await dbPut('inventory', invRows[0]);
+    }
+    // Update or delete item
+    if (newQty <= 0) {
+      await dbDelete('invoice_items', itemId);
+    } else {
+      oldItem.quantity = newQty;
+      oldItem.total = newQty * oldItem.price;
+      await dbPut('invoice_items', oldItem);
+      newTotal += oldItem.total;
+    }
+  }
+  // Update invoice total
+  const newDiscount = parseFloat(document.getElementById('edit-inv-discount').value) || 0;
+  inv.total_amount = Math.max(0, newTotal - newDiscount);
+  inv.discount = newDiscount;
+  await dbPut('invoices', inv);
+  // Update customer credit if needed
+  if (inv.customer_id && (inv.payment_type === 'credit' || inv.payment_type === 'partial')) {
+    const cust = await dbGet('customers', inv.customer_id);
+    if (cust) {
+      // Recalculate: old credit = old total - old cash_paid
+      const oldCredit = (inv.total_amount + (inv.discount||0)) - inv.cash_paid;
+      const newCredit = inv.total_amount - inv.cash_paid;
+      const diff = newCredit - oldCredit;
+      cust.credit_balance = Math.max(0, (cust.credit_balance||0) + diff);
+      await dbPut('customers', cust);
+    }
+  }
+  closeModal('edit-inv-modal');
+  loadInvoices();
+  showToast('✅ Invoice updated!');
+}
+
+// Credit Settlement Invoice
+async function printCreditSettlement(customerId, amountPaid) {
+  const cust = await dbGet('customers', customerId);
+  const s = settings;
+  const now = new Date();
+  const qatarTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Qatar' }));
+  const dateTime = `${fmtDate(qatarTime.toISOString().split('T')[0])} ${qatarTime.toTimeString().slice(0,5)}`;
+  const logoSVG = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="38" fill="none" stroke="#1a237e" stroke-width="3"/>
+    <circle cx="40" cy="40" r="32" fill="#1a237e"/>
+    <text x="40" y="52" font-family="Arial" font-size="26" font-weight="900" fill="white" text-anchor="middle">NF</text>
+    <text x="40" y="68" font-family="Arial" font-size="7" fill="white" text-anchor="middle" letter-spacing="1">FAIR WAY</text>
+  </svg>`;
+  const remainingBalance = Math.max(0, (cust.credit_balance||0) - amountPaid);
+  const html = `<div class="a4-invoice">
+    <div class="a4-header">
+      <div class="a4-header-left">
+        <div style="font-size:20px;font-weight:900;color:#1a237e;">NEW FAIR WAY TRADING</div>
+        <div style="font-size:10px;margin-top:4px;">📍 ${s.address||'Doha, Qatar'}</div>
+        <div style="font-size:10px;">📞 ${s.phone1||''} | ${s.phone2||''}</div>
+      </div>
+      <div class="a4-logo-wrap">${logoSVG}</div>
+      <div class="a4-header-right" style="direction:rtl;text-align:right;">
+        <div style="font-size:18px;font-weight:900;color:#1a237e;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
+        <div style="font-size:10px;">📍 الدوحة، قطر</div>
+      </div>
+    </div>
+    <div class="a4-inv-title" style="background:#e8f5e9;">
+      <div style="font-size:15px;font-weight:800;color:#1b5e20;">CREDIT SETTLEMENT RECEIPT / إيصال تسوية رصيد</div>
+    </div>
+    <div class="a4-meta">
+      <div><strong>Date/Time:</strong> ${dateTime}</div>
+    </div>
+    <div class="a4-customer">
+      <div><strong>Customer: </strong>${cust?.name||'-'} ${cust?.phone?'· '+cust.phone:''}</div>
+    </div>
+    <div style="padding:16px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd;"><span>Previous Outstanding Balance / الرصيد السابق</span><span style="font-weight:700;color:#c62828;">QR ${((cust.credit_balance||0)).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd;"><span>Amount Paid / المبلغ المدفوع</span><span style="font-weight:700;color:#2e7d32;">QR ${parseFloat(amountPaid).toFixed(2)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:800;"><span>Remaining Balance / الرصيد المتبقي</span><span style="color:${remainingBalance>0?'#c62828':'#2e7d32'};">QR ${remainingBalance.toFixed(2)}</span></div>
+    </div>
+    <div class="a4-footer">
+      <div><strong>Customer Signature / توقيع العميل</strong><br><br>_______________________</div>
+      <div style="text-align:right;"><strong>Cashier / أمين الصندوق</strong><br><br>_______________________</div>
+    </div>
+  </div>`;
+  showInvoiceViewer(html, 'a4');
+}
   if (!selectedInvoiceId) return;
   const inv = await dbGet('invoices', selectedInvoiceId);
   const items = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
@@ -2111,54 +2339,74 @@ async function renderLowStock() {
 function printA4Invoice(invoice, items, customer, prodMap) {
   const s = settings;
   const invNum = String(invoice.invoice_id).padStart(4, '0');
+  // Payment type label
+  const ptMap = { cash:'CASH INVOICE / فاتورة نقداً', credit:'CREDIT INVOICE / فاتورة آجلة', partial:'PARTIAL INVOICE / دفع جزئي', cheque:'CHEQUE INVOICE / فاتورة شيك' };
+  const invTypeLabel = ptMap[invoice.payment_type] || 'CASH/CREDIT INVOICE / فاتورة نقدا/ على الحساب';
+  // Logo SVG (NF letters in circle — works in print)
+  const logoSVG = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="40" cy="40" r="38" fill="none" stroke="#1a237e" stroke-width="3"/>
+    <circle cx="40" cy="40" r="32" fill="#1a237e"/>
+    <text x="40" y="52" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="white" text-anchor="middle">NF</text>
+    <text x="40" y="68" font-family="Arial,sans-serif" font-size="7" fill="white" text-anchor="middle" letter-spacing="1">FAIR WAY</text>
+  </svg>`;
+  // Date + Time
+  const dateTime = `${fmtDate(invoice.date)}${invoice.time ? ' ' + invoice.time : ''}`;
+  // Outstanding balance
+  const outstandingRow = (customer && customer.credit_balance > 0)
+    ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:6px 16px;font-size:11px;font-weight:700;color:#856404;display:flex;justify-content:space-between;">
+        <span>⚠️ Outstanding Balance / رصيد مستحق</span>
+        <span>QR ${customer.credit_balance.toFixed(2)}</span>
+       </div>` : '';
+  // Cheque info row
+  const chequeRow = invoice.payment_type === 'cheque'
+    ? `<tr><td colspan="5" style="text-align:right;font-size:10px;">Cheque No. / رقم الشيك</td><td colspan="2" style="font-size:10px;">${invoice.cheque_number||'-'} (${fmtDate(invoice.cheque_date)||'-'})</td></tr>` : '';
+  // Build rows
   const rows = items.map((it, i) => {
     const p = prodMap[it.product_id];
-    const priceParts = splitQR(it.price);
-    const totalParts = splitQR(it.total);
+    const displayPrice = it.is_foc ? 0 : it.price;
+    const displayTotal = it.is_foc ? 0 : it.total;
+    const priceParts = splitQR(displayPrice);
+    const totalParts = splitQR(displayTotal);
+    const focLabel = it.is_foc ? ' <span style="background:#28a745;color:#fff;padding:1px 4px;border-radius:3px;font-size:9px;">FOC</span>' : '';
+    const uomLabel = it.display_unit || it.uom || p?.unit || '';
     return `<tr>
       <td>${i+1}</td>
-      <td class="desc-col">${p ? p.name : '?'}</td>
-      <td>${it.quantity} ${p?.unit||''}</td>
-      <td>${priceParts.qrs}</td><td>${priceParts.dh}</td>
-      <td>${totalParts.qrs}</td><td>${totalParts.dh}</td>
+      <td class="desc-col">${p ? p.name : '?'}${focLabel}</td>
+      <td>${it.quantity} ${uomLabel}</td>
+      <td>${it.is_foc ? '-' : priceParts.qrs}</td><td>${it.is_foc ? '-' : priceParts.dh}</td>
+      <td>${it.is_foc ? 'FOC' : totalParts.qrs}</td><td>${it.is_foc ? '' : totalParts.dh}</td>
     </tr>`;
   });
-  // Fill empty rows to 17
   for (let i = items.length; i < 17; i++) {
     rows.push(`<tr><td>${i+1}</td><td class="desc-col"></td><td></td><td></td><td></td><td></td><td></td></tr>`);
   }
   const totalParts = splitQR(invoice.total_amount);
-  const subtotal = items.reduce((a,i)=>a+i.total,0);
   const html = `
   <div class="a4-invoice">
     <div class="a4-header">
       <div class="a4-header-left">
-        <div style="font-size:22px;font-weight:900;color:#1a237e;line-height:1.1;">NEW FAIR WAY TRADING</div>
-        <div class="a4-contact-row"><span class="icon">📍</span> ${s.address||'Dohatna Logistic Park, Umm Shaharaine-1, Doha- Qatar'}</div>
-        <div class="a4-contact-row"><span class="icon">📞</span> ${s.phone1||'+974 7004 3377'}</div>
-        <div class="a4-contact-row"><span class="icon">📞</span> ${s.phone2||'+974 7204 3377'}</div>
-        <div class="a4-contact-row"><span class="icon">✉️</span> ${s.email||'fairway.fmcg@gmail.com'}</div>
+        <div style="font-size:20px;font-weight:900;color:#1a237e;line-height:1.1;">NEW FAIR WAY TRADING</div>
+        <div class="a4-contact-row"><span>📍</span> ${s.address||'Dohatna Logistic Park, Umm Shaharaine-1, Doha- Qatar'}</div>
+        <div class="a4-contact-row"><span>📞</span> ${s.phone1||'+974 7004 3377'}</div>
+        <div class="a4-contact-row"><span>📞</span> ${s.phone2||'+974 7204 3377'}</div>
+        <div class="a4-contact-row"><span>✉️</span> ${s.email||'fairway.fmcg@gmail.com'}</div>
       </div>
-      <div class="a4-logo-wrap">
-        <div class="a4-logo-circle" style="width:80px;height:80px;border-radius:50%;border:2px solid #1a237e;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:2rem;">🏪</div>
-      </div>
-      <div class="a4-header-right" style="direction:rtl;">
-        <div style="font-size:20px;font-weight:900;color:#1a237e;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
-        <div class="a4-contact-row" style="justify-content:flex-end;"><span>حديقة دوحتنا اللوجستية، أم شهرين-١، الدوحة- قطر</span> <span class="icon">📍</span></div>
-        <div class="a4-contact-row" style="justify-content:flex-end;"><span>جوال : ${s.phone1||'+974 7004 3377'}</span> <span class="icon">📞</span></div>
-        <div class="a4-contact-row" style="justify-content:flex-end;"><span>جوال : ${s.phone2||'+974 7204 3377'}</span> <span class="icon">📞</span></div>
-        <div class="a4-contact-row" style="justify-content:flex-end;"><span>${s.email||'fairway.fmcg@gmail.com'}</span> <span class="icon">✉️</span></div>
+      <div class="a4-logo-wrap">${logoSVG}</div>
+      <div class="a4-header-right" style="direction:rtl;text-align:right;">
+        <div style="font-size:18px;font-weight:900;color:#1a237e;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
+        <div style="font-size:10px;margin-top:3px;">📍 حديقة دوحتنا اللوجستية، أم شهرين-١، الدوحة- قطر</div>
+        <div style="font-size:10px;margin-top:2px;">📞 جوال : ${s.phone1||'+974 7004 3377'}</div>
+        <div style="font-size:10px;margin-top:2px;">📞 جوال : ${s.phone2||'+974 7204 3377'}</div>
+        <div style="font-size:10px;margin-top:2px;">✉️ ${s.email||'fairway.fmcg@gmail.com'}</div>
       </div>
     </div>
     <div class="a4-inv-title">
-      <div style="display:flex;justify-content:center;align-items:center;gap:16px;">
-        <div class="a4-inv-title-ar">فـاتورة نقدا/ على الحساب</div>
-        <div class="a4-inv-title-en">CASH/CREDIT INVOICE</div>
-      </div>
+      <div style="font-size:15px;font-weight:800;color:#1a237e;letter-spacing:.5px;">${invTypeLabel}</div>
     </div>
+    ${outstandingRow}
     <div class="a4-meta">
       <div><strong>No.:</strong> ${invNum}</div>
-      <div style="direction:rtl;"><strong>التاريخ &nbsp; Date.&nbsp;</strong>${fmtDate(invoice.date)}</div>
+      <div style="direction:rtl;"><strong>التاريخ &nbsp; Date &amp; Time:&nbsp;</strong>${dateTime}</div>
     </div>
     <div class="a4-customer">
       <div><strong>Customer Name: </strong>${customer?.name||'_______________________'} ${customer?.phone?'· '+customer.phone:''}</div>
@@ -2186,12 +2434,13 @@ function printA4Invoice(invoice, items, customer, prodMap) {
           <td><strong>${totalParts.dh}</strong></td>
         </tr>
         ${invoice.discount>0?`<tr><td colspan="5" style="text-align:right;">Discount خصم</td><td colspan="2" style="color:red;">- QR ${invoice.discount.toFixed(2)}</td></tr>`:''}
-        ${invoice.payment_type!=='cash'?`<tr><td colspan="5" style="text-align:right;font-size:10px;">Payment Type / Cash Paid</td><td colspan="2" style="font-size:10px;">${invoice.payment_type.toUpperCase()} / QR ${invoice.cash_paid.toFixed(2)}</td></tr>`:''}
+        ${invoice.payment_type==='partial'?`<tr><td colspan="5" style="text-align:right;font-size:10px;">Cash Paid / مدفوع نقداً</td><td colspan="2">QR ${invoice.cash_paid.toFixed(2)}</td></tr><tr><td colspan="5" style="text-align:right;font-size:10px;color:red;">Remaining Credit / متبقي</td><td colspan="2" style="color:red;">QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</td></tr>`:''}
+        ${chequeRow}
       </tfoot>
     </table>
     <div class="a4-footer">
-      <div><strong>Receiver's Signature</strong><br><br>_______________________</div>
-      <div style="text-align:right;"><strong>Salesman's Signature</strong><br><br>_______________________</div>
+      <div><strong>Receiver's Signature / توقيع المستلم</strong><br><br>_______________________</div>
+      <div style="text-align:right;"><strong>Salesman's Signature / توقيع البائع</strong><br><br>_______________________</div>
     </div>
   </div>`;
   showInvoiceViewer(html, 'a4');
@@ -2210,25 +2459,39 @@ function splitQR(amount) {
 function printThermalReceipt(invoice, items, customer, prodMap) {
   const s = settings;
   const invNum = String(invoice.invoice_id).padStart(4, '0');
+  const ptLabel = { cash:'CASH', credit:'CREDIT', partial:'PARTIAL', cheque:'CHEQUE' };
+  const dateTime = `${fmtDate(invoice.date)}${invoice.time ? ' '+invoice.time : ''}`;
   const itemRows = items.map(it => {
     const p = prodMap[it.product_id];
-    return `<div class="thermal-row"><span>${p?.name||'?'} x${it.quantity}</span><span>QR ${it.total.toFixed(2)}</span></div>`;
+    const uomLabel = it.display_unit || it.uom || p?.unit || '';
+    const priceStr = it.is_foc ? 'FOC' : `QR ${it.total.toFixed(2)}`;
+    return `<div class="thermal-row"><span>${p?.name||'?'} x${it.quantity} ${uomLabel}</span><span>${priceStr}</span></div>`;
   }).join('');
+  const logoSVG = `<svg width="48" height="48" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 4px;">
+    <circle cx="40" cy="40" r="38" fill="none" stroke="#000" stroke-width="3"/>
+    <circle cx="40" cy="40" r="32" fill="#000"/>
+    <text x="40" y="52" font-family="Arial" font-size="26" font-weight="900" fill="white" text-anchor="middle">NF</text>
+  </svg>`;
   const html = `<div class="thermal-receipt">
+    ${logoSVG}
     <div class="thermal-logo">${s.company||'NEW FAIR WAY TRADING'}</div>
+    <div class="thermal-center" style="font-size:9px;">نيو فيرفي تريدينغ</div>
     <div class="thermal-center" style="font-size:9px;">${s.address||'Doha, Qatar'}</div>
     <div class="thermal-center" style="font-size:9px;">${s.phone1||''} | ${s.phone2||''}</div>
     <hr class="thermal-divider">
+    <div class="thermal-center" style="font-weight:700;font-size:11px;">${ptLabel[invoice.payment_type]||'CASH'} INVOICE</div>
+    <hr class="thermal-divider">
     <div class="thermal-row"><span>Invoice #</span><span>${invNum}</span></div>
-    <div class="thermal-row"><span>Date:</span><span>${fmtDate(invoice.date)}</span></div>
+    <div class="thermal-row"><span>Date/Time:</span><span>${dateTime}</span></div>
     <div class="thermal-row"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
-    <div class="thermal-row"><span>Payment:</span><span>${invoice.payment_type.toUpperCase()}</span></div>
+    ${customer?.credit_balance>0?`<div class="thermal-row" style="color:#856404;"><span>⚠️ Outstanding:</span><span>QR ${customer.credit_balance.toFixed(2)}</span></div>`:''}
     <hr class="thermal-divider">
     ${itemRows}
     <hr class="thermal-divider">
     ${invoice.discount>0?`<div class="thermal-row"><span>Discount:</span><span>-QR ${invoice.discount.toFixed(2)}</span></div>`:''}
     <div class="thermal-row thermal-total"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
-    ${invoice.payment_type!=='cash'?`<div class="thermal-row"><span>Cash Paid:</span><span>QR ${invoice.cash_paid.toFixed(2)}</span></div><div class="thermal-row"><span>On Credit:</span><span>QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</span></div>`:''}
+    ${invoice.payment_type==='partial'?`<div class="thermal-row"><span>Cash Paid:</span><span>QR ${invoice.cash_paid.toFixed(2)}</span></div><div class="thermal-row"><span>Credit:</span><span>QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</span></div>`:''}
+    ${invoice.payment_type==='cheque'?`<div class="thermal-row"><span>Cheque #:</span><span>${invoice.cheque_number||'-'}</span></div><div class="thermal-row"><span>Cheque Date:</span><span>${fmtDate(invoice.cheque_date)||'-'}</span></div>`:''}
     <hr class="thermal-divider">
     <div class="thermal-center">Thank You! شكراً لكم</div>
     <div class="thermal-center" style="font-size:9px;">${s.email||'fairway.fmcg@gmail.com'}</div>
