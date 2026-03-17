@@ -1505,82 +1505,96 @@ function clearCart() {
 
 async function completeOrder() {
   if (cart.length === 0) { showToast('⚠️ Cart is empty!'); return; }
-  const custId = parseInt(document.getElementById('pos-customer').value) || null;
-  const total = getCartTotal();
-  const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
-  let cashPaid = total;
-  if (payType === 'credit') cashPaid = 0;
-  if (payType === 'partial') cashPaid = parseFloat(document.getElementById('pos-cash-paid').value) || 0;
-  if (payType === 'cheque') cashPaid = total; // cheque = full payment
-  // Cheque details
-  const chequeNum = payType === 'cheque' ? document.getElementById('pos-cheque-num').value : null;
-  const chequeDate = payType === 'cheque' ? document.getElementById('pos-cheque-date').value : null;
-  // Validation
-  if (payType === 'credit' && !custId) { showToast('⚠️ Select customer for credit sale!'); return; }
-  if (payType === 'partial' && cashPaid >= total) { showToast('⚠️ Partial pay must be less than total. Use Cash.'); return; }
-  if (payType === 'cheque' && !chequeNum) { showToast('⚠️ Enter cheque number!'); return; }
-  // Qatar time
-  const now = new Date();
-  const qatarTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Qatar' }));
-  const dateStr = qatarTime.toISOString().split('T')[0];
-  const timeStr = qatarTime.toTimeString().slice(0,5);
-  // Save invoice
-  const invId = await dbAdd('invoices', {
-    customer_id: custId,
-    date: dateStr,
-    time: timeStr,
-    total_amount: total,
-    payment_type: payType,
-    cash_paid: cashPaid,
-    discount: discount,
-    cheque_number: chequeNum,
-    cheque_date: chequeDate,
-    created_at: now.toISOString()
-  });
-  // Save items & update inventory
-  for (const item of cart) {
-    // Calculate actual stock units (bags = 1/4 box)
-    const stockUnits = item.uom === 'bag' ? Math.ceil(item.quantity / 4) : item.quantity;
-    await dbAdd('invoice_items', {
-      invoice_id: invId,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      display_unit: item.displayUnit || item.unit,
-      uom: item.uom || 'box',
-      price: item.price,
-      cost: item.cost,
-      total: item.total,
-      is_foc: item.isFOC ? 1 : 0
-    });
-    // Update truck inventory
-    const invRows = await dbGetByIndex('inventory', 'product_id', item.product_id);
-    if (invRows.length > 0) {
-      const inv = invRows[0];
-      inv.quantity = Math.max(0, inv.quantity - stockUnits);
-      inv.last_updated = new Date().toISOString();
-      await dbPut('inventory', inv);
+  const btn = document.querySelector('.btn-success.btn-lg');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Processing...'; }
+  try {
+    const custId = parseInt(document.getElementById('pos-customer').value) || null;
+    const total = getCartTotal();
+    const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+    let cashPaid = total;
+    if (payType === 'credit') cashPaid = 0;
+    if (payType === 'partial') cashPaid = parseFloat(document.getElementById('pos-cash-paid').value) || 0;
+    if (payType === 'cheque') cashPaid = total;
+    const chequeNum = payType === 'cheque' ? (document.getElementById('pos-cheque-num')?.value || '') : null;
+    const chequeDate = payType === 'cheque' ? (document.getElementById('pos-cheque-date')?.value || '') : null;
+    // Validation
+    if (payType === 'credit' && !custId) { showToast('⚠️ Select customer for credit sale!'); return; }
+    if (payType === 'partial' && cashPaid >= total) { showToast('⚠️ Partial pay must be less than total.'); return; }
+    if (payType === 'cheque' && !chequeNum) { showToast('⚠️ Enter cheque number!'); return; }
+    // Qatar time
+    const now = new Date();
+    let dateStr = today();
+    let timeStr = '';
+    try {
+      const qatarTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Qatar' }));
+      dateStr = qatarTime.toISOString().split('T')[0];
+      timeStr = qatarTime.toTimeString().slice(0,5);
+    } catch(e) { timeStr = now.toTimeString().slice(0,5); }
+    // Save invoice — only include columns that exist
+    const invoiceData = {
+      customer_id: custId,
+      date: dateStr,
+      total_amount: total,
+      payment_type: payType,
+      cash_paid: cashPaid,
+      discount: discount,
+      created_at: now.toISOString()
+    };
+    // Try to add extra columns (may not exist in old DB)
+    try { invoiceData.time = timeStr; } catch(e){}
+    try { if (chequeNum) invoiceData.cheque_number = chequeNum; } catch(e){}
+    try { if (chequeDate) invoiceData.cheque_date = chequeDate; } catch(e){}
+    const invId = await dbAdd('invoices', invoiceData);
+    if (!invId) throw new Error('Failed to save invoice');
+    // Save items & update inventory
+    for (const item of cart) {
+      const stockUnits = item.uom === 'bag' ? Math.ceil(item.quantity / 4) : item.quantity;
+      const itemData = {
+        invoice_id: invId,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        cost: item.cost || 0,
+        total: item.total
+      };
+      // Try extra columns
+      try { itemData.display_unit = item.displayUnit || item.unit || ''; } catch(e){}
+      try { itemData.uom = item.uom || 'box'; } catch(e){}
+      try { itemData.is_foc = item.isFOC ? 1 : 0; } catch(e){}
+      await dbAdd('invoice_items', itemData);
+      // Update truck inventory
+      const invRows = await dbGetByIndex('inventory', 'product_id', item.product_id);
+      if (invRows.length > 0) {
+        invRows[0].quantity = Math.max(0, invRows[0].quantity - stockUnits);
+        invRows[0].last_updated = now.toISOString();
+        await dbPut('inventory', invRows[0]);
+      }
     }
-  }
-  // Update customer credit
-  if (custId && (payType === 'credit' || payType === 'partial')) {
-    const cust = await dbGet('customers', custId);
-    if (cust) {
-      const creditAdded = total - cashPaid;
-      cust.credit_balance = (cust.credit_balance || 0) + creditAdded;
-      await dbPut('customers', cust);
+    // Update customer credit
+    if (custId && (payType === 'credit' || payType === 'partial')) {
+      const cust = await dbGet('customers', custId);
+      if (cust) {
+        cust.credit_balance = (cust.credit_balance || 0) + (total - cashPaid);
+        await dbPut('customers', cust);
+      }
     }
+    // Print
+    const invoice = await dbGet('invoices', invId);
+    const items = await dbGetByIndex('invoice_items', 'invoice_id', invId);
+    const customer = custId ? await dbGet('customers', custId) : null;
+    const products = await dbGetAll('products');
+    const prodMap = {};
+    products.forEach(p => prodMap[p.product_id] = p);
+    if (printType === 'a4') printA4Invoice(invoice, items, customer, prodMap);
+    else if (printType === 'thermal') printThermalReceipt(invoice, items, customer, prodMap);
+    showToast('✅ Order #' + invId + ' completed!');
+    await loadPOSScreen();
+  } catch(err) {
+    console.error('Order error:', err);
+    showToast('❌ Error: ' + (err.message || 'Please try again'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ COMPLETE ORDER'; }
   }
-  // Print
-  const invoice = await dbGet('invoices', invId);
-  const items = await dbGetByIndex('invoice_items', 'invoice_id', invId);
-  const customer = custId ? await dbGet('customers', custId) : null;
-  const products = await dbGetAll('products');
-  const prodMap = {};
-  products.forEach(p => prodMap[p.product_id] = p);
-  if (printType === 'a4') printA4Invoice(invoice, items, customer, prodMap);
-  else if (printType === 'thermal') printThermalReceipt(invoice, items, customer, prodMap);
-  showToast('✅ Order #' + invId + ' completed!');
-  await loadPOSScreen();
 }
 
 // ═══════════════════════════════════════════════
