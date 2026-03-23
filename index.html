@@ -2498,11 +2498,8 @@ function printA4Invoice(invoice, items, customer, prodMap) {
     <circle cx="50" cy="50" r="48" fill="#1a237e"/>
     <circle cx="50" cy="50" r="43" fill="none" stroke="white" stroke-width="2"/>
     <circle cx="50" cy="50" r="38" fill="#1a237e"/>
-    <!-- N letter - left side curved -->
     <path d="M22 32 L22 68 L28 68 L28 45 L38 68 L44 68 L44 32 L38 32 L38 55 L28 32 Z" fill="white"/>
-    <!-- F letter - right side -->
     <path d="M52 32 L52 68 L58 68 L58 54 L70 54 L70 49 L58 49 L58 38 L72 38 L72 32 Z" fill="white"/>
-    <!-- Circular text NEW FAIR WAY TRADING -->
     <path id="topCircle" d="M50,50 m-36,0 a36,36 0 1,1 72,0" fill="none"/>
     <text font-family="Arial,sans-serif" font-size="7.5" font-weight="700" fill="white" letter-spacing="1.8">
       <textPath href="#topCircle" startOffset="3%">NEW FAIR WAY TRADING</textPath>
@@ -2602,6 +2599,7 @@ function printA4Invoice(invoice, items, customer, prodMap) {
       <div style="text-align:right;"><strong>Salesman's Signature / توقيع البائع</strong><br><br>_______________________</div>
     </div>
   </div>`;
+  showInvoiceViewer(html, 'a4');
 }
 
 function splitQR(amount) {
@@ -2623,7 +2621,7 @@ function printThermalReceipt(invoice, items, customer, prodMap) {
     const p = prodMap[it.product_id];
     const uomLabel = it.display_unit || it.uom || p?.unit || '';
     const priceStr = it.is_foc ? 'FOC' : `QR ${it.total.toFixed(2)}`;
-    return `<div class="thermal-row" style="margin:4px 0;"><span>${p?.name||'?'} x${it.quantity} ${uomLabel}</span><span>${priceStr}</span></div>`;
+    return `<div class="thermal-row" style="margin:7px 0;font-size:11px;padding:3px 0;border-bottom:1px dotted #ccc;"><span>${p?.name||'?'} x${it.quantity} ${uomLabel}</span><span style="font-weight:700;">${priceStr}</span></div>`;
   }).join('');
   const logoSVG = `<svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 6px;">
     <circle cx="50" cy="50" r="48" fill="#1a237e"/>
@@ -2633,30 +2631,39 @@ function printThermalReceipt(invoice, items, customer, prodMap) {
     <path id="tc" d="M50,50 m-36,0 a36,36 0 1,1 72,0" fill="none"/>
     <text font-family="Arial" font-size="7" font-weight="700" fill="white" letter-spacing="1.5"><textPath href="#tc" startOffset="3%">NEW FAIR WAY TRADING</textPath></text>
   </svg>`;
-  const html = `<div class="thermal-receipt" style="padding:16px 12px;">
+  const html = `<div class="thermal-receipt" style="padding:20px 14px;min-width:280px;">
     ${logoSVG}
-    <div class="thermal-logo" style="font-size:13px;margin-bottom:2px;">${s.company||'NEW FAIR WAY TRADING'}</div>
-    <div class="thermal-center" style="font-size:9px;margin-bottom:2px;">نيو فيرفي تريدينغ</div>
-    <div class="thermal-center" style="font-size:9px;margin-bottom:2px;">${s.address||'Doha, Qatar'}</div>
-    <div class="thermal-center" style="font-size:9px;margin-bottom:8px;">${s.phone1||''} | ${s.phone2||''}</div>
-    <hr class="thermal-divider" style="margin:8px 0;">
-    <div class="thermal-center" style="font-weight:900;font-size:12px;margin:6px 0;letter-spacing:1px;">${ptLabel[invoice.payment_type]||'CASH INVOICE'}</div>
-    <hr class="thermal-divider" style="margin:8px 0;">
-    <div class="thermal-row" style="margin:5px 0;"><span>Invoice #</span><span>${invNum}</span></div>
-    <div class="thermal-row" style="margin:5px 0;"><span>Date/Time:</span><span>${dateTime}</span></div>
-    <div class="thermal-row" style="margin:5px 0;"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
-    ${customer?.credit_balance>0?('<div class="thermal-row" style="margin:5px 0;color:#856404;font-weight:700;"><span>⚠️ Outstanding:</span><span>QR ${customer.credit_balance.toFixed(2)}</span></div>'):''}
+    <div style="height:8px;"></div>
+    <div class="thermal-logo" style="font-size:14px;margin-bottom:4px;letter-spacing:1px;">${s.company||'NEW FAIR WAY TRADING'}</div>
+    <div class="thermal-center" style="font-size:10px;margin-bottom:4px;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:4px;">${s.address||'Doha, Qatar'}</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:4px;">${s.phone1||''}</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:10px;">${s.phone2||''}</div>
+    <hr class="thermal-divider" style="margin:10px 0;border-top:2px solid #000;">
+    <div class="thermal-center" style="font-weight:900;font-size:13px;margin:8px 0;letter-spacing:2px;">${ptLabel[invoice.payment_type]||'CASH INVOICE'}</div>
+    <hr class="thermal-divider" style="margin:10px 0;border-top:2px solid #000;">
+    <div style="height:4px;"></div>
+    <div class="thermal-row" style="margin:7px 0;font-size:11px;"><span><b>Invoice #:</b></span><span><b>${invNum}</b></span></div>
+    <div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Date/Time:</span><span>${dateTime}</span></div>
+    <div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
+    ${customer?.credit_balance>0?('<div class="thermal-row" style="margin:7px 0;font-size:11px;color:#856404;font-weight:700;"><span>⚠️ Outstanding:</span><span>QR '+customer.credit_balance.toFixed(2)+'</span></div>'):''}
+    <div style="height:4px;"></div>
     <hr class="thermal-divider" style="margin:10px 0;">
+    <div style="height:4px;"></div>
     ${itemRows}
+    <div style="height:4px;"></div>
     <hr class="thermal-divider" style="margin:10px 0;">
-    ${invoice.discount>0?('<div class="thermal-row" style="margin:5px 0;"><span>Discount:</span><span>-QR ${invoice.discount.toFixed(2)}</span></div>'):''}
-    <div class="thermal-row thermal-total" style="margin:8px 0;font-size:14px;padding:4px 0;border-top:1px solid #000;border-bottom:1px solid #000;"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
-    ${invoice.payment_type==='partial'?('<div class="thermal-row" style="margin:5px 0;"><span>Cash Paid:</span><span>QR '+invoice.cash_paid.toFixed(2)+'</span></div><div class="thermal-row" style="margin:5px 0;color:red;font-weight:700;"><span>Credit Remaining:</span><span>QR '+(invoice.total_amount-invoice.cash_paid).toFixed(2)+'</span></div>'):''}
-    ${invoice.payment_type==='cheque'?('<div class="thermal-row" style="margin:5px 0;"><span>Cheque #:</span><span>${invoice.cheque_number||\'-\'}</span></div><div class="thermal-row" style="margin:5px 0;"><span>Cheque Date:</span><span>${fmtDate(invoice.cheque_date)||\'-\'}</span></div>'):''}
+    <div style="height:4px;"></div>
+    ${invoice.discount>0?('<div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Discount:</span><span>-QR '+invoice.discount.toFixed(2)+'</span></div>'):''}
+    <div class="thermal-row thermal-total" style="margin:10px 0;font-size:15px;font-weight:900;padding:6px 0;border-top:2px solid #000;border-bottom:2px solid #000;"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
+    ${invoice.payment_type==='partial'?('<div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Cash Paid:</span><span>QR '+invoice.cash_paid.toFixed(2)+'</span></div><div class="thermal-row" style="margin:7px 0;font-size:11px;color:red;font-weight:700;"><span>Credit Remaining:</span><span>QR '+(invoice.total_amount-invoice.cash_paid).toFixed(2)+'</span></div>'):''}
+    ${invoice.payment_type==='cheque'?('<div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Cheque #:</span><span>'+invoice.cheque_number+'</span></div><div class="thermal-row" style="margin:7px 0;font-size:11px;"><span>Cheque Date:</span><span>'+fmtDate(invoice.cheque_date)+'</span></div>'):''}
+    <div style="height:8px;"></div>
     <hr class="thermal-divider" style="margin:12px 0;">
-    <div class="thermal-center" style="margin:6px 0;font-size:12px;font-weight:700;">Thank You! شكراً لكم</div>
-    <div class="thermal-center" style="font-size:9px;margin-top:4px;">${s.email||'fairway.fmcg@gmail.com'}</div>
-    <div style="margin-top:20px;"></div>
+    <div style="height:8px;"></div>
+    <div class="thermal-center" style="margin:8px 0;font-size:13px;font-weight:700;">Thank You! شكراً لكم</div>
+    <div class="thermal-center" style="font-size:9px;margin-top:6px;">${s.email||'fairway.fmcg@gmail.com'}</div>
+    <div style="height:40px;"></div>
   </div>`;
   showInvoiceViewer(html, 'thermal');
 }
