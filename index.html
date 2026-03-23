@@ -849,8 +849,23 @@ input[type=number]{-moz-appearance:textfield;}
       <button class="btn btn-warning btn-block" onclick="changePin()">🔐 Change PIN</button>
     </div>
     <div class="card">
-      <div class="card-title">Data Management</div>
-      <button class="btn btn-outline btn-block mt-8" onclick="exportData()">📤 Export Data (JSON)</button>
+      <div class="card-title">💾 Data Backup & Safety</div>
+      <div class="alert alert-success" style="margin-bottom:12px;font-size:.82rem;">
+        ✅ Your data is saved in <strong>Supabase cloud</strong> — safe across all devices. Use manual backup below as extra protection.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <button class="btn btn-primary btn-block" onclick="exportData()">📤 Download Backup</button>
+        <button class="btn btn-outline btn-block" onclick="document.getElementById('restore-file').click()">📥 Restore Backup</button>
+      </div>
+      <input type="file" id="restore-file" accept=".json" style="display:none;" onchange="restoreData(event)">
+      <button class="btn btn-outline btn-block" style="margin-bottom:8px;" onclick="exportCSV()">📊 Export as Excel/CSV</button>
+      <div id="backup-status" style="font-size:.78rem;color:var(--text2);text-align:center;margin-bottom:8px;"></div>
+      <div style="font-size:.75rem;color:var(--text2);background:var(--surface2);padding:10px;border-radius:8px;line-height:1.6;">
+        💡 <strong>Tip:</strong> Download backup weekly and save to Google Drive or WhatsApp yourself. This gives you a permanent copy outside Supabase.
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--red);">⚠️ Danger Zone</div>
       <button class="btn btn-danger btn-block mt-8" onclick="confirmResetData()">🗑️ Reset All Data</button>
     </div>
     <div class="card">
@@ -2796,34 +2811,123 @@ function removeProductPhoto() {
 // DATA EXPORT / RESET
 // ═══════════════════════════════════════════════
 async function exportData() {
-  const data = {
-    customers: await dbGetAll('customers'),
-    products: await dbGetAll('products'),
-    inventory: await dbGetAll('inventory'),
-    invoices: await dbGetAll('invoices'),
-    invoice_items: await dbGetAll('invoice_items'),
-    expenses: await dbGetAll('expenses'),
-    exportedAt: new Date().toISOString()
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `fairway-data-${today()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('📤 Data exported!');
+  showToast('⏳ Preparing backup...');
+  const statusEl = document.getElementById('backup-status');
+  try {
+    const data = {
+      version: '1.0',
+      company: 'New Fair Way Trading',
+      exportedAt: new Date().toISOString(),
+      customers: await dbGetAll('customers'),
+      products: await dbGetAll('products'),
+      inventory: await dbGetAll('inventory'),
+      warehouse_stock: await dbGetAll('warehouse_stock'),
+      invoices: await dbGetAll('invoices'),
+      invoice_items: await dbGetAll('invoice_items'),
+      expenses: await dbGetAll('expenses'),
+      credit_payments: await dbGetAll('credit_payments'),
+    };
+    const total = data.customers.length + data.invoices.length + data.products.length;
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FairWay-Backup-${today()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (statusEl) statusEl.textContent = `✅ Backup saved — ${total} records (${(json.length/1024).toFixed(1)}KB) · ${fmtDate(today())}`;
+    showToast('✅ Backup downloaded!');
+  } catch(e) {
+    showToast('❌ Backup failed: ' + e.message);
+  }
+}
+
+async function exportCSV() {
+  showToast('⏳ Preparing CSV...');
+  try {
+    const invoices = await dbGetAll('invoices');
+    const items = await dbGetAll('invoice_items');
+    const customers = await dbGetAll('customers');
+    const products = await dbGetAll('products');
+    const custMap = {}; customers.forEach(c => custMap[c.customer_id] = c.name);
+    const prodMap = {}; products.forEach(p => prodMap[p.product_id] = p.name);
+    // Invoices CSV
+    let csv = 'Invoice No,Date,Time,Customer,Payment Type,Total,Cash Paid,Discount\n';
+    invoices.sort((a,b) => b.invoice_id - a.invoice_id).forEach(inv => {
+      csv += `${String(inv.invoice_id).padStart(4,'0')},${inv.date||''},${inv.time||''},${custMap[inv.customer_id]||'Walk-in'},${inv.payment_type||''},${inv.total_amount||0},${inv.cash_paid||0},${inv.discount||0}\n`;
+    });
+    csv += '\n\nInvoice Items\nInvoice No,Product,Qty,Unit Price,Total\n';
+    items.forEach(it => {
+      csv += `${String(it.invoice_id).padStart(4,'0')},${prodMap[it.product_id]||'?'},${it.quantity||0},${it.price||0},${it.total||0}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FairWay-Report-${today()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ CSV exported — open in Excel!');
+  } catch(e) {
+    showToast('❌ Export failed: ' + e.message);
+  }
+}
+
+async function restoreData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const confirmed = confirm('⚠️ This will REPLACE all current data with the backup. Are you sure?');
+  if (!confirmed) { event.target.value = ''; return; }
+  const confirmed2 = confirm('⚠️ FINAL WARNING — all current data will be overwritten. Continue?');
+  if (!confirmed2) { event.target.value = ''; return; }
+  showToast('⏳ Restoring backup...');
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.version || !data.customers) { showToast('❌ Invalid backup file!'); return; }
+    const tables = ['credit_payments','invoice_items','invoices','expenses','inventory','warehouse_stock','products','customers'];
+    // Clear existing data
+    for (const t of tables) {
+      try { await sb.from(t).delete().neq(getPK(t), -1); } catch(e) {}
+    }
+    // Restore each table
+    const restoreTable = async (table, rows) => {
+      if (!rows || !rows.length) return;
+      for (let i = 0; i < rows.length; i += 50) {
+        const batch = rows.slice(i, i+50);
+        try { await sb.from(table).insert(batch); } catch(e) { console.warn(`Restore ${table}:`, e.message); }
+      }
+    };
+    await restoreTable('customers', data.customers);
+    await restoreTable('products', data.products);
+    await restoreTable('inventory', data.inventory);
+    await restoreTable('warehouse_stock', data.warehouse_stock);
+    await restoreTable('invoices', data.invoices);
+    await restoreTable('invoice_items', data.invoice_items);
+    await restoreTable('expenses', data.expenses);
+    await restoreTable('credit_payments', data.credit_payments);
+    // Clear local cache
+    Object.keys(localCache).forEach(k => delete localCache[k]);
+    showToast('✅ Backup restored successfully! Reloading...');
+    setTimeout(() => location.reload(), 2000);
+  } catch(e) {
+    showToast('❌ Restore failed: ' + e.message);
+  }
+  event.target.value = '';
 }
 
 function confirmResetData() {
-  if (prompt('Type DELETE to confirm reset all data:') === 'DELETE') {
-    const tables = ['invoice_items','invoices','inventory','expenses','credit_payments','customers','products','settings'];
-    Promise.all(tables.map(t => sb.from(t).delete().neq(getPK(t), -1))).then(() => {
-      Object.keys(localCache).forEach(k => delete localCache[k]);
-      showToast('🗑️ Data reset. Reloading...');
-      setTimeout(() => location.reload(), 1500);
-    });
-  }
+  const answer = prompt('⚠️ This will DELETE ALL DATA permanently.\n\nType DELETE to confirm:');
+  if (answer !== 'DELETE') { showToast('Reset cancelled.'); return; }
+  const answer2 = prompt('⚠️ FINAL WARNING — type CONFIRM to proceed:');
+  if (answer2 !== 'CONFIRM') { showToast('Reset cancelled.'); return; }
+  const tables = ['invoice_items','invoices','inventory','warehouse_stock','expenses','credit_payments','customers','products','settings'];
+  Promise.all(tables.map(t => sb.from(t).delete().neq(getPK(t), -1))).then(() => {
+    Object.keys(localCache).forEach(k => delete localCache[k]);
+    showToast('🗑️ Data reset. Reloading...');
+    setTimeout(() => location.reload(), 1500);
+  });
 }
 
 // ═══════════════════════════════════════════════
