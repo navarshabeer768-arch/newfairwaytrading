@@ -475,6 +475,9 @@ input[type=number]{-moz-appearance:textfield;}
         <button class="chip" id="print-thermal-btn" onclick="setPrintType('thermal')">🧾 Thermal</button>
         <button class="chip" id="print-none-btn" onclick="setPrintType('none')">No Print</button>
       </div>
+      <button class="btn btn-warning btn-lg btn-block" onclick="previewOrder()" style="margin-bottom:8px;">
+        👁️ PREVIEW INVOICE
+      </button>
       <button class="btn btn-success btn-lg btn-block" onclick="completeOrder()">
         ✅ COMPLETE ORDER
       </button>
@@ -1047,14 +1050,17 @@ async function dbAdd(table, data) {
   try {
     if (isOnline) {
       const { data: res, error } = await sb.from(table).insert(data).select().single();
+      if (error) {
+        console.warn(`dbAdd ${table} error:`, error.message, '— using offline fallback');
+      }
       if (!error && res) {
         if (!localCache[table]) localCache[table] = [];
         localCache[table].push(res);
         return res[pk];
       }
     }
-  } catch(e) {}
-  // Offline — queue it
+  } catch(e) { console.warn(`dbAdd ${table} exception:`, e.message); }
+  // Offline fallback
   const tempId = Date.now();
   const tempData = { ...data, [pk]: tempId };
   if (!localCache[table]) localCache[table] = [];
@@ -1578,15 +1584,34 @@ async function completeOrder() {
         await dbPut('customers', cust);
       }
     }
-    // Print
-    const invoice = await dbGet('invoices', invId);
-    const items = await dbGetByIndex('invoice_items', 'invoice_id', invId);
+    // Print — build invoice object locally, no need to fetch again
+    const invoiceForPrint = {
+      invoice_id: invId,
+      customer_id: custId,
+      date: dateStr,
+      time: timeStr,
+      total_amount: total,
+      payment_type: payType,
+      cash_paid: cashPaid,
+      discount: discount,
+      cheque_number: chequeNum,
+      cheque_date: chequeDate
+    };
+    const itemsForPrint = cart.map(item => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+      total: item.total,
+      display_unit: item.displayUnit || item.unit,
+      uom: item.uom || 'box',
+      is_foc: item.isFOC ? 1 : 0
+    }));
     const customer = custId ? await dbGet('customers', custId) : null;
     const products = await dbGetAll('products');
     const prodMap = {};
     products.forEach(p => prodMap[p.product_id] = p);
-    if (printType === 'a4') printA4Invoice(invoice, items, customer, prodMap);
-    else if (printType === 'thermal') printThermalReceipt(invoice, items, customer, prodMap);
+    if (printType === 'a4') printA4Invoice(invoiceForPrint, itemsForPrint, customer, prodMap);
+    else if (printType === 'thermal') printThermalReceipt(invoiceForPrint, itemsForPrint, customer, prodMap);
     showToast('✅ Order #' + invId + ' completed!');
     await loadPOSScreen();
   } catch(err) {
@@ -1871,7 +1896,7 @@ async function viewInvoice(id) {
     html += `<div class="summary-row"><span>${i+1}. ${p?.name||'?'} ×${it.quantity}</span><span>${fmtMoney(it.total)}</span></div>`;
   });
   html += `<div class="divider"></div>
-    ${inv.discount>0?`<div class="summary-row"><span>Discount</span><span class="color-red">-${fmtMoney(inv.discount)}</span></div>`:''}
+    ${inv.discount>0?('<div class="summary-row"><span>Discount</span><span class="color-red">-${fmtMoney(inv.discount)}</span></div>'):''}
     <div class="summary-row total"><span>TOTAL</span><span>${fmtMoney(inv.total_amount)}</span></div>
   </div>`;
   document.getElementById('inv-detail-content').innerHTML = html;
@@ -1891,6 +1916,55 @@ async function reprintInvoice() {
   printA4Invoice(inv, items, cust, prodMap);
 }
 
+// ═══════════════════════════════════════════════
+// PREVIEW ORDER (before completing)
+// ═══════════════════════════════════════════════
+async function previewOrder() {
+  if (cart.length === 0) { showToast('⚠️ Cart is empty!'); return; }
+  const custId = parseInt(document.getElementById('pos-customer').value) || null;
+  const total = getCartTotal();
+  const discount = parseFloat(document.getElementById('pos-discount').value) || 0;
+  let cashPaid = total;
+  if (payType === 'credit') cashPaid = 0;
+  if (payType === 'partial') cashPaid = parseFloat(document.getElementById('pos-cash-paid').value) || 0;
+  const customer = custId ? await dbGet('customers', custId) : null;
+  const now = new Date();
+  let dateStr = today(), timeStr = '';
+  try {
+    const qatarTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Qatar' }));
+    dateStr = qatarTime.toISOString().split('T')[0];
+    timeStr = qatarTime.toTimeString().slice(0,5);
+  } catch(e) {}
+  // Build fake invoice object for preview
+  const fakeInvoice = {
+    invoice_id: '----',
+    customer_id: custId,
+    date: dateStr,
+    time: timeStr,
+    total_amount: total,
+    payment_type: payType,
+    cash_paid: cashPaid,
+    discount: discount,
+    cheque_number: document.getElementById('pos-cheque-num')?.value || '',
+    cheque_date: document.getElementById('pos-cheque-date')?.value || ''
+  };
+  // Build fake items from cart
+  const fakeItems = cart.map(item => ({
+    product_id: item.product_id,
+    quantity: item.quantity,
+    price: item.price,
+    total: item.total,
+    display_unit: item.displayUnit || item.unit,
+    uom: item.uom || 'box',
+    is_foc: item.isFOC ? 1 : 0
+  }));
+  const products = await dbGetAll('products');
+  const prodMap = {};
+  products.forEach(p => prodMap[p.product_id] = p);
+  if (printType === 'thermal') printThermalReceipt(fakeInvoice, fakeItems, customer, prodMap);
+  else printA4Invoice(fakeInvoice, fakeItems, customer, prodMap);
+}
+
 async function editInvoice() {
   if (!selectedInvoiceId) return;
   const inv = await dbGet('invoices', selectedInvoiceId);
@@ -1902,20 +1976,65 @@ async function editInvoice() {
     const p = prodMap[it.product_id];
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px;margin-bottom:6px;">
       <div style="flex:1;font-size:.85rem;font-weight:600;">${p?.name||'?'}</div>
-      <input type="number" value="${it.quantity}" min="0" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;" data-item-id="${it.item_id}" data-product-id="${it.product_id}" data-old-qty="${it.quantity}" class="edit-item-qty">
+      <input type="number" value="${it.quantity}" min="0" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;text-align:center;" data-item-id="${it.item_id}" data-product-id="${it.product_id}" data-old-qty="${it.quantity}" data-price="${it.price}" class="edit-item-qty">
       <span style="font-size:.75rem;color:var(--text2);">${it.display_unit||it.uom||p?.unit||''}</span>
       <span style="font-size:.85rem;font-weight:700;">${fmtMoney(it.price)}</span>
     </div>`;
   }).join('');
+  // Add product selector
+  const productOptions = prods.sort((a,b)=>a.name.localeCompare(b.name)).map(p => `<option value="${p.product_id}" data-price="${p.selling_price}" data-unit="${p.unit||''}">${p.name} — ${fmtMoney(p.selling_price)}</option>`).join('');
   document.getElementById('edit-inv-content').innerHTML = `
     <div class="alert alert-warning">⚠️ Editing will automatically update truck inventory.</div>
     <div class="form-group"><label class="form-label">Discount (QR)</label>
       <input type="number" class="form-input" id="edit-inv-discount" value="${inv.discount||0}">
     </div>
-    <div class="section-title">Items</div>
+    <div class="section-title">Items (set 0 to remove)</div>
     ${itemsHtml}
-    <div style="font-size:.75rem;color:var(--text2);margin-top:8px;">Set quantity to 0 to remove an item</div>`;
+    <div class="divider"></div>
+    <div class="section-title">➕ Add Product</div>
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Product</label>
+        <select class="form-select" id="edit-add-product">
+          <option value="">-- Select --</option>
+          ${productOptions}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Qty</label>
+        <input type="number" class="form-input" id="edit-add-qty" value="1" min="1" style="width:70px;">
+      </div>
+      <button class="btn btn-primary" onclick="addProductToEditInvoice()" style="margin-bottom:0;">Add</button>
+    </div>
+    <div id="edit-added-items"></div>`;
   openModal('edit-inv-modal');
+}
+
+let editAddedItems = [];
+
+function addProductToEditInvoice() {
+  const sel = document.getElementById('edit-add-product');
+  const qty = parseInt(document.getElementById('edit-add-qty').value) || 1;
+  const productId = parseInt(sel.value);
+  if (!productId) { showToast('⚠️ Select a product!'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const price = parseFloat(opt.getAttribute('data-price')) || 0;
+  const unit = opt.getAttribute('data-unit') || '';
+  const name = opt.text.split(' — ')[0];
+  editAddedItems.push({ product_id: productId, name, quantity: qty, price, unit, total: qty * price });
+  const container = document.getElementById('edit-added-items');
+  if (container) {
+    container.innerHTML = editAddedItems.map((item, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px;background:#e8f5e9;border-radius:8px;margin-top:6px;">
+        <div style="flex:1;font-size:.85rem;font-weight:600;">+ ${item.name}</div>
+        <span style="font-size:.82rem;">×${item.quantity} ${item.unit}</span>
+        <span style="font-size:.85rem;font-weight:700;">${fmtMoney(item.total)}</span>
+        <button onclick="editAddedItems.splice(${i},1);addProductToEditInvoice();" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:3px 8px;cursor:pointer;">✕</button>
+      </div>`).join('');
+  }
+  sel.value = '';
+  document.getElementById('edit-add-qty').value = 1;
+  showToast('✅ ' + name + ' added');
 }
 
 async function saveEditedInvoice() {
@@ -1924,48 +2043,59 @@ async function saveEditedInvoice() {
   const oldItems = await dbGetByIndex('invoice_items', 'invoice_id', selectedInvoiceId);
   const qtyInputs = document.querySelectorAll('.edit-item-qty');
   let newTotal = 0;
+  // Update existing items
   for (const input of qtyInputs) {
     const itemId = parseInt(input.getAttribute('data-item-id'));
     const productId = parseInt(input.getAttribute('data-product-id'));
     const oldQty = parseInt(input.getAttribute('data-old-qty'));
+    const price = parseFloat(input.getAttribute('data-price')) || 0;
     const newQty = parseInt(input.value) || 0;
     const oldItem = oldItems.find(i => i.item_id === itemId);
     if (!oldItem) continue;
-    const diff = newQty - oldQty; // positive = more stock used, negative = stock returned
-    // Update inventory
+    const diff = newQty - oldQty;
     const invRows = await dbGetByIndex('inventory', 'product_id', productId);
     if (invRows.length > 0) {
       invRows[0].quantity = Math.max(0, invRows[0].quantity - diff);
       invRows[0].last_updated = new Date().toISOString();
       await dbPut('inventory', invRows[0]);
     }
-    // Update or delete item
     if (newQty <= 0) {
       await dbDelete('invoice_items', itemId);
     } else {
       oldItem.quantity = newQty;
-      oldItem.total = newQty * oldItem.price;
+      oldItem.total = newQty * (oldItem.price || price);
       await dbPut('invoice_items', oldItem);
       newTotal += oldItem.total;
     }
   }
-  // Update invoice total
+  // Add new items
+  if (typeof editAddedItems !== 'undefined') {
+    for (const item of editAddedItems) {
+      await dbAdd('invoice_items', {
+        invoice_id: selectedInvoiceId,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        cost: 0,
+        total: item.total,
+        display_unit: item.unit,
+        uom: 'box',
+        is_foc: 0
+      });
+      newTotal += item.total;
+      const invRows = await dbGetByIndex('inventory', 'product_id', item.product_id);
+      if (invRows.length > 0) {
+        invRows[0].quantity = Math.max(0, invRows[0].quantity - item.quantity);
+        invRows[0].last_updated = new Date().toISOString();
+        await dbPut('inventory', invRows[0]);
+      }
+    }
+    editAddedItems = [];
+  }
   const newDiscount = parseFloat(document.getElementById('edit-inv-discount').value) || 0;
   inv.total_amount = Math.max(0, newTotal - newDiscount);
   inv.discount = newDiscount;
   await dbPut('invoices', inv);
-  // Update customer credit if needed
-  if (inv.customer_id && (inv.payment_type === 'credit' || inv.payment_type === 'partial')) {
-    const cust = await dbGet('customers', inv.customer_id);
-    if (cust) {
-      // Recalculate: old credit = old total - old cash_paid
-      const oldCredit = (inv.total_amount + (inv.discount||0)) - inv.cash_paid;
-      const newCredit = inv.total_amount - inv.cash_paid;
-      const diff = newCredit - oldCredit;
-      cust.credit_balance = Math.max(0, (cust.credit_balance||0) + diff);
-      await dbPut('customers', cust);
-    }
-  }
   closeModal('edit-inv-modal');
   loadInvoices();
   showToast('✅ Invoice updated!');
@@ -2343,7 +2473,7 @@ async function renderLowStock() {
   const invMap = {}; inv.forEach(i=>invMap[i.product_id]=i.quantity);
   const low = prods.map(p=>({...p,qty:invMap[p.product_id]||0})).filter(p=>p.qty<=(p.low_stock_threshold||10));
   const out = low.filter(p=>p.qty<=0);
-  document.getElementById('report-content').innerHTML = (out.length?`<div class="alert alert-warning">🚨 ${out.length} products OUT OF STOCK</div>`:'') +
+  document.getElementById('report-content').innerHTML = (out.length?('<div class="alert alert-warning">🚨 ${out.length} products OUT OF STOCK</div>'):'') +
     (low.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Threshold</th><th>Status</th></tr></thead><tbody>` +
     low.map(p=>`<tr><td>${p.icon||'📦'} ${p.name}</td><td>${p.category}</td><td class="${p.qty<=0?'color-red':'color-gold'} fw-800">${p.qty}</td><td>${p.low_stock_threshold||10}</td><td>${p.qty<=0?'<span class="badge badge-red">OUT</span>':'<span class="badge badge-gold">LOW</span>'}</td></tr>`).join('') +
     `</tbody></table></div>` : '<div class="alert alert-success">✅ All products have sufficient stock</div>');
@@ -2352,31 +2482,41 @@ async function renderLowStock() {
 // ═══════════════════════════════════════════════
 // PRINT — A4 INVOICE (New Fair Way Trading style)
 // ═══════════════════════════════════════════════
+function toArabicNumerals(str) {
+  const arabic = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  return String(str).replace(/[0-9]/g, d => arabic[d]);
+}
+
 function printA4Invoice(invoice, items, customer, prodMap) {
   const s = settings;
   const invNum = String(invoice.invoice_id).padStart(4, '0');
-  // Payment type label
+  const invNumAr = toArabicNumerals(invNum);
   const ptMap = { cash:'CASH INVOICE / فاتورة نقداً', credit:'CREDIT INVOICE / فاتورة آجلة', partial:'PARTIAL INVOICE / دفع جزئي', cheque:'CHEQUE INVOICE / فاتورة شيك' };
   const invTypeLabel = ptMap[invoice.payment_type] || 'CASH/CREDIT INVOICE / فاتورة نقدا/ على الحساب';
-  // Logo SVG (NF letters in circle — works in print)
-  const logoSVG = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="40" cy="40" r="38" fill="none" stroke="#1a237e" stroke-width="3"/>
-    <circle cx="40" cy="40" r="32" fill="#1a237e"/>
-    <text x="40" y="52" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="white" text-anchor="middle">NF</text>
-    <text x="40" y="68" font-family="Arial,sans-serif" font-size="7" fill="white" text-anchor="middle" letter-spacing="1">FAIR WAY</text>
+  // Real NF logo matching the circular design with curved N and F
+  const logoSVG = `<svg width="90" height="90" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="48" fill="#1a237e"/>
+    <circle cx="50" cy="50" r="43" fill="none" stroke="white" stroke-width="2"/>
+    <circle cx="50" cy="50" r="38" fill="#1a237e"/>
+    <!-- N letter - left side curved -->
+    <path d="M22 32 L22 68 L28 68 L28 45 L38 68 L44 68 L44 32 L38 32 L38 55 L28 32 Z" fill="white"/>
+    <!-- F letter - right side -->
+    <path d="M52 32 L52 68 L58 68 L58 54 L70 54 L70 49 L58 49 L58 38 L72 38 L72 32 Z" fill="white"/>
+    <!-- Circular text NEW FAIR WAY TRADING -->
+    <path id="topCircle" d="M50,50 m-36,0 a36,36 0 1,1 72,0" fill="none"/>
+    <text font-family="Arial,sans-serif" font-size="7.5" font-weight="700" fill="white" letter-spacing="1.8">
+      <textPath href="#topCircle" startOffset="3%">NEW FAIR WAY TRADING</textPath>
+    </text>
   </svg>`;
-  // Date + Time
   const dateTime = `${fmtDate(invoice.date)}${invoice.time ? ' ' + invoice.time : ''}`;
-  // Outstanding balance
+  const dateTimeAr = toArabicNumerals(dateTime);
   const outstandingRow = (customer && customer.credit_balance > 0)
     ? `<div style="background:#fff3cd;border:1px solid #ffc107;padding:6px 16px;font-size:11px;font-weight:700;color:#856404;display:flex;justify-content:space-between;">
         <span>⚠️ Outstanding Balance / رصيد مستحق</span>
         <span>QR ${customer.credit_balance.toFixed(2)}</span>
        </div>` : '';
-  // Cheque info row
   const chequeRow = invoice.payment_type === 'cheque'
     ? `<tr><td colspan="5" style="text-align:right;font-size:10px;">Cheque No. / رقم الشيك</td><td colspan="2" style="font-size:10px;">${invoice.cheque_number||'-'} (${fmtDate(invoice.cheque_date)||'-'})</td></tr>` : '';
-  // Build rows
   const rows = items.map((it, i) => {
     const p = prodMap[it.product_id];
     const displayPrice = it.is_foc ? 0 : it.price;
@@ -2410,9 +2550,9 @@ function printA4Invoice(invoice, items, customer, prodMap) {
       <div class="a4-logo-wrap">${logoSVG}</div>
       <div class="a4-header-right" style="direction:rtl;text-align:right;">
         <div style="font-size:18px;font-weight:900;color:#1a237e;font-family:'Cairo',sans-serif;">نيو فيرفي تريدينغ</div>
-        <div style="font-size:10px;margin-top:3px;">📍 حديقة دوحتنا اللوجستية، أم شهرين-١، الدوحة- قطر</div>
-        <div style="font-size:10px;margin-top:2px;">📞 جوال : ${s.phone1||'+974 7004 3377'}</div>
-        <div style="font-size:10px;margin-top:2px;">📞 جوال : ${s.phone2||'+974 7204 3377'}</div>
+        <div style="font-size:10px;margin-top:3px;font-family:'Cairo',sans-serif;">📍 حديقة دوحتنا اللوجستية، أم شهرين-١، الدوحة- قطر</div>
+        <div style="font-size:10px;margin-top:2px;font-family:'Cairo',sans-serif;">📞 جوال : ${toArabicNumerals(s.phone1||'+974 7004 3377')}</div>
+        <div style="font-size:10px;margin-top:2px;font-family:'Cairo',sans-serif;">📞 جوال : ${toArabicNumerals(s.phone2||'+974 7204 3377')}</div>
         <div style="font-size:10px;margin-top:2px;">✉️ ${s.email||'fairway.fmcg@gmail.com'}</div>
       </div>
     </div>
@@ -2422,11 +2562,14 @@ function printA4Invoice(invoice, items, customer, prodMap) {
     ${outstandingRow}
     <div class="a4-meta">
       <div><strong>No.:</strong> ${invNum}</div>
-      <div style="direction:rtl;"><strong>التاريخ &nbsp; Date &amp; Time:&nbsp;</strong>${dateTime}</div>
+      <div style="direction:rtl;font-family:'Cairo',sans-serif;"><strong>التاريخ &nbsp; Date &amp; Time:&nbsp;</strong>${dateTimeAr}</div>
+    </div>
+    <div style="direction:rtl;text-align:right;padding:4px 16px;font-size:11px;font-family:'Cairo',sans-serif;border-bottom:1px solid #ccc;">
+      <strong>الرقم : </strong>${invNumAr}
     </div>
     <div class="a4-customer">
       <div><strong>Customer Name: </strong>${customer?.name||'_______________________'} ${customer?.phone?'· '+customer.phone:''}</div>
-      <div style="direction:rtl;"><strong>السيد / السادة</strong></div>
+      <div style="direction:rtl;font-family:'Cairo',sans-serif;"><strong>السيد / السادة</strong></div>
     </div>
     <table class="a4-table">
       <thead>
@@ -2449,8 +2592,8 @@ function printA4Invoice(invoice, items, customer, prodMap) {
           <td><strong>${totalParts.qrs}</strong></td>
           <td><strong>${totalParts.dh}</strong></td>
         </tr>
-        ${invoice.discount>0?`<tr><td colspan="5" style="text-align:right;">Discount خصم</td><td colspan="2" style="color:red;">- QR ${invoice.discount.toFixed(2)}</td></tr>`:''}
-        ${invoice.payment_type==='partial'?`<tr><td colspan="5" style="text-align:right;font-size:10px;">Cash Paid / مدفوع نقداً</td><td colspan="2">QR ${invoice.cash_paid.toFixed(2)}</td></tr><tr><td colspan="5" style="text-align:right;font-size:10px;color:red;">Remaining Credit / متبقي</td><td colspan="2" style="color:red;">QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</td></tr>`:''}
+        ${invoice.discount>0?('<tr><td colspan="5" style="text-align:right;">Discount خصم</td><td colspan="2" style="color:red;">- QR '+invoice.discount.toFixed(2)+'</td></tr>'):''}
+        ${invoice.payment_type==='partial'?('<tr><td colspan="5" style="text-align:right;font-size:10px;">Cash Paid / مدفوع نقداً</td><td colspan="2">QR '+invoice.cash_paid.toFixed(2)+'</td></tr><tr><td colspan="5" style="text-align:right;font-size:10px;color:red;">Remaining Credit / متبقي</td><td colspan="2" style="color:red;">QR '+(invoice.total_amount-invoice.cash_paid).toFixed(2)+'</td></tr>'):''}
         ${chequeRow}
       </tfoot>
     </table>
@@ -2459,7 +2602,6 @@ function printA4Invoice(invoice, items, customer, prodMap) {
       <div style="text-align:right;"><strong>Salesman's Signature / توقيع البائع</strong><br><br>_______________________</div>
     </div>
   </div>`;
-  showInvoiceViewer(html, 'a4');
 }
 
 function splitQR(amount) {
@@ -2475,42 +2617,46 @@ function splitQR(amount) {
 function printThermalReceipt(invoice, items, customer, prodMap) {
   const s = settings;
   const invNum = String(invoice.invoice_id).padStart(4, '0');
-  const ptLabel = { cash:'CASH', credit:'CREDIT', partial:'PARTIAL', cheque:'CHEQUE' };
+  const ptLabel = { cash:'CASH INVOICE', credit:'CREDIT INVOICE', partial:'PARTIAL PAYMENT', cheque:'CHEQUE INVOICE' };
   const dateTime = `${fmtDate(invoice.date)}${invoice.time ? ' '+invoice.time : ''}`;
   const itemRows = items.map(it => {
     const p = prodMap[it.product_id];
     const uomLabel = it.display_unit || it.uom || p?.unit || '';
     const priceStr = it.is_foc ? 'FOC' : `QR ${it.total.toFixed(2)}`;
-    return `<div class="thermal-row"><span>${p?.name||'?'} x${it.quantity} ${uomLabel}</span><span>${priceStr}</span></div>`;
+    return `<div class="thermal-row" style="margin:4px 0;"><span>${p?.name||'?'} x${it.quantity} ${uomLabel}</span><span>${priceStr}</span></div>`;
   }).join('');
-  const logoSVG = `<svg width="48" height="48" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 4px;">
-    <circle cx="40" cy="40" r="38" fill="none" stroke="#000" stroke-width="3"/>
-    <circle cx="40" cy="40" r="32" fill="#000"/>
-    <text x="40" y="52" font-family="Arial" font-size="26" font-weight="900" fill="white" text-anchor="middle">NF</text>
+  const logoSVG = `<svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto 6px;">
+    <circle cx="50" cy="50" r="48" fill="#1a237e"/>
+    <circle cx="50" cy="50" r="43" fill="none" stroke="white" stroke-width="2"/>
+    <path d="M22 32 L22 68 L28 68 L28 45 L38 68 L44 68 L44 32 L38 32 L38 55 L28 32 Z" fill="white"/>
+    <path d="M52 32 L52 68 L58 68 L58 54 L70 54 L70 49 L58 49 L58 38 L72 38 L72 32 Z" fill="white"/>
+    <path id="tc" d="M50,50 m-36,0 a36,36 0 1,1 72,0" fill="none"/>
+    <text font-family="Arial" font-size="7" font-weight="700" fill="white" letter-spacing="1.5"><textPath href="#tc" startOffset="3%">NEW FAIR WAY TRADING</textPath></text>
   </svg>`;
-  const html = `<div class="thermal-receipt">
+  const html = `<div class="thermal-receipt" style="padding:16px 12px;">
     ${logoSVG}
-    <div class="thermal-logo">${s.company||'NEW FAIR WAY TRADING'}</div>
-    <div class="thermal-center" style="font-size:9px;">نيو فيرفي تريدينغ</div>
-    <div class="thermal-center" style="font-size:9px;">${s.address||'Doha, Qatar'}</div>
-    <div class="thermal-center" style="font-size:9px;">${s.phone1||''} | ${s.phone2||''}</div>
-    <hr class="thermal-divider">
-    <div class="thermal-center" style="font-weight:700;font-size:11px;">${ptLabel[invoice.payment_type]||'CASH'} INVOICE</div>
-    <hr class="thermal-divider">
-    <div class="thermal-row"><span>Invoice #</span><span>${invNum}</span></div>
-    <div class="thermal-row"><span>Date/Time:</span><span>${dateTime}</span></div>
-    <div class="thermal-row"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
-    ${customer?.credit_balance>0?`<div class="thermal-row" style="color:#856404;"><span>⚠️ Outstanding:</span><span>QR ${customer.credit_balance.toFixed(2)}</span></div>`:''}
-    <hr class="thermal-divider">
+    <div class="thermal-logo" style="font-size:13px;margin-bottom:2px;">${s.company||'NEW FAIR WAY TRADING'}</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:2px;">نيو فيرفي تريدينغ</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:2px;">${s.address||'Doha, Qatar'}</div>
+    <div class="thermal-center" style="font-size:9px;margin-bottom:8px;">${s.phone1||''} | ${s.phone2||''}</div>
+    <hr class="thermal-divider" style="margin:8px 0;">
+    <div class="thermal-center" style="font-weight:900;font-size:12px;margin:6px 0;letter-spacing:1px;">${ptLabel[invoice.payment_type]||'CASH INVOICE'}</div>
+    <hr class="thermal-divider" style="margin:8px 0;">
+    <div class="thermal-row" style="margin:5px 0;"><span>Invoice #</span><span>${invNum}</span></div>
+    <div class="thermal-row" style="margin:5px 0;"><span>Date/Time:</span><span>${dateTime}</span></div>
+    <div class="thermal-row" style="margin:5px 0;"><span>Customer:</span><span>${customer?.name||'Walk-in'}</span></div>
+    ${customer?.credit_balance>0?('<div class="thermal-row" style="margin:5px 0;color:#856404;font-weight:700;"><span>⚠️ Outstanding:</span><span>QR ${customer.credit_balance.toFixed(2)}</span></div>'):''}
+    <hr class="thermal-divider" style="margin:10px 0;">
     ${itemRows}
-    <hr class="thermal-divider">
-    ${invoice.discount>0?`<div class="thermal-row"><span>Discount:</span><span>-QR ${invoice.discount.toFixed(2)}</span></div>`:''}
-    <div class="thermal-row thermal-total"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
-    ${invoice.payment_type==='partial'?`<div class="thermal-row"><span>Cash Paid:</span><span>QR ${invoice.cash_paid.toFixed(2)}</span></div><div class="thermal-row"><span>Credit:</span><span>QR ${(invoice.total_amount-invoice.cash_paid).toFixed(2)}</span></div>`:''}
-    ${invoice.payment_type==='cheque'?`<div class="thermal-row"><span>Cheque #:</span><span>${invoice.cheque_number||'-'}</span></div><div class="thermal-row"><span>Cheque Date:</span><span>${fmtDate(invoice.cheque_date)||'-'}</span></div>`:''}
-    <hr class="thermal-divider">
-    <div class="thermal-center">Thank You! شكراً لكم</div>
-    <div class="thermal-center" style="font-size:9px;">${s.email||'fairway.fmcg@gmail.com'}</div>
+    <hr class="thermal-divider" style="margin:10px 0;">
+    ${invoice.discount>0?('<div class="thermal-row" style="margin:5px 0;"><span>Discount:</span><span>-QR ${invoice.discount.toFixed(2)}</span></div>'):''}
+    <div class="thermal-row thermal-total" style="margin:8px 0;font-size:14px;padding:4px 0;border-top:1px solid #000;border-bottom:1px solid #000;"><span>TOTAL:</span><span>QR ${invoice.total_amount.toFixed(2)}</span></div>
+    ${invoice.payment_type==='partial'?('<div class="thermal-row" style="margin:5px 0;"><span>Cash Paid:</span><span>QR '+invoice.cash_paid.toFixed(2)+'</span></div><div class="thermal-row" style="margin:5px 0;color:red;font-weight:700;"><span>Credit Remaining:</span><span>QR '+(invoice.total_amount-invoice.cash_paid).toFixed(2)+'</span></div>'):''}
+    ${invoice.payment_type==='cheque'?('<div class="thermal-row" style="margin:5px 0;"><span>Cheque #:</span><span>${invoice.cheque_number||\'-\'}</span></div><div class="thermal-row" style="margin:5px 0;"><span>Cheque Date:</span><span>${fmtDate(invoice.cheque_date)||\'-\'}</span></div>'):''}
+    <hr class="thermal-divider" style="margin:12px 0;">
+    <div class="thermal-center" style="margin:6px 0;font-size:12px;font-weight:700;">Thank You! شكراً لكم</div>
+    <div class="thermal-center" style="font-size:9px;margin-top:4px;">${s.email||'fairway.fmcg@gmail.com'}</div>
+    <div style="margin-top:20px;"></div>
   </div>`;
   showInvoiceViewer(html, 'thermal');
 }
@@ -2889,7 +3035,7 @@ async function loadOrders(filter) {
           <div style="font-weight:700;font-size:.95rem;">${cust?.name||'Unknown'} ${isUrgent?'🔴':''} ${isOverdue?'⚠️ OVERDUE':''}</div>
           <div style="font-size:.75rem;color:var(--text2);margin-top:3px;">📅 ${o.delivery_date ? fmtDate(o.delivery_date) : 'No date'} · Order #${o.order_id}</div>
           <div style="font-size:.8rem;margin-top:4px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${o.items||''}</div>
-          ${o.notes?`<div style="font-size:.75rem;color:var(--text2);margin-top:2px;">📝 ${o.notes}</div>`:''}
+          ${o.notes?('<div style="font-size:.75rem;color:var(--text2);margin-top:2px;">📝 ${o.notes}</div>'):''}
         </div>
         <div>
           <span class="badge badge-${o.status==='pending'?'gold':o.status==='ready'?'green':'navy'}">${o.status}</span>
@@ -2958,7 +3104,7 @@ async function viewOrder(id) {
       <div class="divider"></div>
       <div style="font-weight:700;margin-bottom:6px;">📦 Order Items:</div>
       <div style="font-size:.9rem;white-space:pre-line;color:var(--text);">${order.items}</div>
-      ${order.notes?`<div class="divider"></div><div style="font-size:.85rem;color:var(--text2);">📝 ${order.notes}</div>`:''}
+      ${order.notes?('<div class="divider"></div><div style="font-size:.85rem;color:var(--text2);">📝 ${order.notes}</div>'):''}
     </div>`;
   const actions = document.getElementById('ord-detail-actions');
   actions.innerHTML = `<button class="btn btn-outline btn-block" onclick="closeModal('order-detail-modal')">Close</button>`;
