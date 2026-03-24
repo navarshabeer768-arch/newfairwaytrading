@@ -1337,6 +1337,7 @@ async function saveSettings() {
 async function changePin() {
   const newPin = document.getElementById('set-new-pin').value.trim();
   if (!/^\d{4}$/.test(newPin)) { showToast('⚠️ PIN must be exactly 4 digits!'); return; }
+  localStorage.setItem('app_pin', newPin);
   await dbPut('settings', { key: 'app_pin', value: newPin });
   document.getElementById('set-new-pin').value = '';
   showToast('✅ PIN changed successfully!');
@@ -3823,52 +3824,43 @@ async function submitPin() {
     document.getElementById('pin-error').textContent = '⚠️ Please enter 4 digits';
     return;
   }
-  try {
-    // Try to get PIN from Supabase
-    let correctPin = DEFAULT_PIN;
-    try {
-      const storedPin = await dbGet('settings', 'app_pin');
-      if (storedPin && storedPin.value) correctPin = storedPin.value;
-    } catch(e) {
-      // Can't reach DB - use default PIN
-      correctPin = DEFAULT_PIN;
-    }
-    if (entered === correctPin) {
-      document.getElementById('pin-screen').classList.add('hidden');
-      document.getElementById('loading').style.display = 'none';
-      showScreen('home-screen');
-    } else {
-      document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
-      input.value = '';
-      input.focus();
-    }
-  } catch(e) {
-    console.error('PIN error:', e);
-    // Fallback - always allow default PIN
-    if (entered === DEFAULT_PIN) {
-      document.getElementById('pin-screen').classList.add('hidden');
-      document.getElementById('loading').style.display = 'none';
-      showScreen('home-screen');
-    } else {
-      document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
-      input.value = '';
-    }
+  // Check localStorage first (fast, no network)
+  const localPin = localStorage.getItem('app_pin') || DEFAULT_PIN;
+  if (entered === localPin) {
+    document.getElementById('pin-screen').classList.add('hidden');
+    document.getElementById('loading').style.display = 'none';
+    showScreen('home-screen');
+    return;
   }
+  // Also try Supabase (in case PIN was changed on another device)
+  try {
+    const storedPin = await Promise.race([
+      dbGet('settings', 'app_pin'),
+      new Promise((_, reject) => setTimeout(() => reject('timeout'), 3000))
+    ]);
+    if (storedPin && storedPin.value) {
+      localStorage.setItem('app_pin', storedPin.value); // save locally
+      if (entered === storedPin.value) {
+        document.getElementById('pin-screen').classList.add('hidden');
+        document.getElementById('loading').style.display = 'none';
+        showScreen('home-screen');
+        return;
+      }
+    }
+  } catch(e) { /* timeout or error - ignore */ }
+  document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
+  input.value = '';
+  input.focus();
 }
 
 function emergencyReset() {
   const pw = prompt('Enter master password:');
   if (pw === '7786') {
-    // Force reset PIN to 1234 in Supabase
-    sb.from('settings').upsert({ key: 'app_pin', value: '1234' }).then(() => {
-      alert('✅ PIN reset to 1234. Please enter 1234 to login.');
-      document.getElementById('pin-input').value = '';
-      document.getElementById('pin-error').textContent = '';
-    }).catch(() => {
-      // If Supabase fails, just bypass PIN
-      document.getElementById('pin-screen').classList.add('hidden');
-      showScreen('home-screen');
-    });
+    localStorage.setItem('app_pin', '1234');
+    sb.from('settings').upsert({ key: 'app_pin', value: '1234' }).catch(()=>{});
+    alert('✅ PIN reset to 1234. Enter 1234 to login.');
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
   }
 }
 
@@ -3877,11 +3869,11 @@ function pinForgot() {
   if (answer === '7786') {
     const newPin = prompt('Enter new 4-digit PIN:');
     if (newPin && /^\d{4}$/.test(newPin)) {
-      dbPut('settings', { key: 'app_pin', value: newPin }).then(() => {
-        alert('✅ PIN changed to: ' + newPin);
-        document.getElementById('pin-input').value = '';
-        document.getElementById('pin-error').textContent = '';
-      });
+      localStorage.setItem('app_pin', newPin);
+      dbPut('settings', { key: 'app_pin', value: newPin }).catch(()=>{});
+      alert('✅ PIN changed to: ' + newPin);
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-error').textContent = '';
     } else {
       alert('PIN must be exactly 4 digits!');
     }
