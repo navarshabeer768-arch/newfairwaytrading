@@ -3823,8 +3823,6 @@ async function submitPin() {
     return;
   }
   try {
-    // Make sure DB is ready
-    if (!db) await initDB();
     const storedPin = await dbGet('settings', 'app_pin');
     const correctPin = storedPin ? storedPin.value : DEFAULT_PIN;
     if (entered === correctPin) {
@@ -3867,34 +3865,23 @@ function pinForgot() {
 }
 
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
 async function init() {
   try {
-    // Logo set to null - use SVG in invoices
     document.getElementById('pin-screen').classList.add('hidden');
     document.getElementById('loading').style.display = 'flex';
     await initDB();
     await loadSettingsObj();
     await seedIfEmpty();
     if ('serviceWorker' in navigator) {
-      // Unregister ALL old service workers and clear all caches first
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-      });
-      caches.keys().then(keys => {
-        keys.forEach(key => { if (key !== 'fairway-pwa-v10') caches.delete(key); });
-      });
-      // Re-register fresh
-      setTimeout(() => {
-        navigator.serviceWorker.register('sw.js').catch(()=>{});
-      }, 1000);
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
     }
     document.getElementById('loading').style.display = 'none';
     document.getElementById('pin-screen').classList.remove('hidden');
     document.getElementById('pin-input').focus();
     pinReady = true;
-    // Show online/offline status
     updateOnlineStatus();
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
