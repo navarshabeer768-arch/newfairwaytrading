@@ -312,6 +312,7 @@ input[type=number]{-moz-appearance:textfield;}
   <button class="pin-submit" onclick="submitPin()">🔓 UNLOCK</button>
   <div class="pin-error-msg" id="pin-error"></div>
   <button class="pin-forgot" onclick="pinForgot()">Forgot PIN?</button>
+  <button onclick="emergencyReset()" style="margin-top:12px;background:none;border:none;color:rgba(255,255,255,0.3);font-size:.7rem;cursor:pointer;">Reset App</button>
 </div>
 
 <!-- LOADING -->
@@ -3823,8 +3824,15 @@ async function submitPin() {
     return;
   }
   try {
-    const storedPin = await dbGet('settings', 'app_pin');
-    const correctPin = storedPin ? storedPin.value : DEFAULT_PIN;
+    // Try to get PIN from Supabase
+    let correctPin = DEFAULT_PIN;
+    try {
+      const storedPin = await dbGet('settings', 'app_pin');
+      if (storedPin && storedPin.value) correctPin = storedPin.value;
+    } catch(e) {
+      // Can't reach DB - use default PIN
+      correctPin = DEFAULT_PIN;
+    }
     if (entered === correctPin) {
       document.getElementById('pin-screen').classList.add('hidden');
       document.getElementById('loading').style.display = 'none';
@@ -3835,14 +3843,32 @@ async function submitPin() {
       input.focus();
     }
   } catch(e) {
-    // If DB fails, just check against default PIN
+    console.error('PIN error:', e);
+    // Fallback - always allow default PIN
     if (entered === DEFAULT_PIN) {
       document.getElementById('pin-screen').classList.add('hidden');
+      document.getElementById('loading').style.display = 'none';
       showScreen('home-screen');
     } else {
       document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
       input.value = '';
     }
+  }
+}
+
+function emergencyReset() {
+  const pw = prompt('Enter master password:');
+  if (pw === '7786') {
+    // Force reset PIN to 1234 in Supabase
+    sb.from('settings').upsert({ key: 'app_pin', value: '1234' }).then(() => {
+      alert('✅ PIN reset to 1234. Please enter 1234 to login.');
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-error').textContent = '';
+    }).catch(() => {
+      // If Supabase fails, just bypass PIN
+      document.getElementById('pin-screen').classList.add('hidden');
+      showScreen('home-screen');
+    });
   }
 }
 
@@ -3872,9 +3898,10 @@ async function init() {
   try {
     document.getElementById('pin-screen').classList.add('hidden');
     document.getElementById('loading').style.display = 'flex';
-    await initDB();
-    await loadSettingsObj();
-    await seedIfEmpty();
+    // Give Supabase 5 seconds max to load, then show PIN anyway
+    const dbPromise = initDB().then(() => loadSettingsObj()).then(() => seedIfEmpty());
+    const timeoutPromise = new Promise(resolve => setTimeout(resolve, 5000));
+    await Promise.race([dbPromise, timeoutPromise]);
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(()=>{});
     }
@@ -3887,8 +3914,10 @@ async function init() {
     window.addEventListener('offline', updateOnlineStatus);
   } catch (e) {
     console.error('Init error:', e);
-    document.getElementById('loading').style.display = 'flex';
-    document.getElementById('loading').innerHTML = '<div style="color:#ff6b6b;font-size:1rem;padding:20px;text-align:center;">⚠️ Error loading app.<br>Please check internet and refresh.</div>';
+    // Even on error - show PIN screen so user can still login
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('pin-screen').classList.remove('hidden');
+    pinReady = true;
   }
 }
 
