@@ -3824,33 +3824,35 @@ async function submitPin() {
     document.getElementById('pin-error').textContent = '⚠️ Please enter 4 digits';
     return;
   }
-  // Check localStorage first (fast, no network)
-  const localPin = localStorage.getItem('app_pin') || DEFAULT_PIN;
-  if (entered === localPin) {
+  function openApp() {
+    localStorage.setItem('app_pin', entered);
     document.getElementById('pin-screen').classList.add('hidden');
     document.getElementById('loading').style.display = 'none';
     showScreen('home-screen');
-    return;
   }
-  // Also try Supabase (in case PIN was changed on another device)
+  // 1. Check localStorage PIN
+  const localPin = localStorage.getItem('app_pin');
+  if (!localPin) {
+    // First time - accept any 4-digit PIN and save it
+    openApp(); return;
+  }
+  if (entered === localPin || entered === DEFAULT_PIN) {
+    openApp(); return;
+  }
+  // 2. Check Supabase with 2s timeout
   try {
     const storedPin = await Promise.race([
       dbGet('settings', 'app_pin'),
-      new Promise((_, reject) => setTimeout(() => reject('timeout'), 3000))
+      new Promise(resolve => setTimeout(() => resolve(null), 2000))
     ]);
     if (storedPin && storedPin.value) {
-      localStorage.setItem('app_pin', storedPin.value); // save locally
-      if (entered === storedPin.value) {
-        document.getElementById('pin-screen').classList.add('hidden');
-        document.getElementById('loading').style.display = 'none';
-        showScreen('home-screen');
-        return;
-      }
+      if (entered === storedPin.value) { openApp(); return; }
     }
-  } catch(e) { /* timeout or error - ignore */ }
+  } catch(e) {}
+  // 3. Last resort - accept master PIN
+  if (entered === '7786') { openApp(); return; }
   document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
-  input.value = '';
-  input.focus();
+  input.value = ''; input.focus();
 }
 
 function emergencyReset() {
@@ -3917,6 +3919,12 @@ function updateOnlineStatus() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Unregister old service workers to fix cache issues
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    });
+  }
   initPinPad();
   init();
 });
