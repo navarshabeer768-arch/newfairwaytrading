@@ -3876,20 +3876,15 @@ function pinForgot() {
 // INIT
 // ═══════════════════════════════════════════════
 async function init() {
-  // Show PIN screen immediately - no waiting for DB
+  // Skip PIN - go straight to app
+  document.getElementById('pin-screen').classList.add('hidden');
   document.getElementById('loading').style.display = 'none';
-  document.getElementById('pin-screen').classList.remove('hidden');
-  document.getElementById('pin-input').focus();
-  pinReady = true;
-  // Load DB in background
   try {
     await initDB();
     await loadSettingsObj();
     await seedIfEmpty();
   } catch(e) { console.warn('DB init error:', e); }
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  }
+  showScreen('home-screen');
   updateOnlineStatus();
   window.addEventListener('online', updateOnlineStatus);
   window.addEventListener('offline', updateOnlineStatus);
