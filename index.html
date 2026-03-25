@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
+<script>
+// Kill all service workers immediately
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => { r.unregister(); console.log('SW unregistered'); });
+  });
+  caches.keys().then(keys => {
+    keys.forEach(k => { caches.delete(k); console.log('Cache deleted:', k); });
+  });
+}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3824,35 +3835,11 @@ async function submitPin() {
     document.getElementById('pin-error').textContent = '⚠️ Please enter 4 digits';
     return;
   }
-  function openApp() {
-    localStorage.setItem('app_pin', entered);
-    document.getElementById('pin-screen').classList.add('hidden');
-    document.getElementById('loading').style.display = 'none';
-    showScreen('home-screen');
-  }
-  // 1. Check localStorage PIN
-  const localPin = localStorage.getItem('app_pin');
-  if (!localPin) {
-    // First time - accept any 4-digit PIN and save it
-    openApp(); return;
-  }
-  if (entered === localPin || entered === DEFAULT_PIN) {
-    openApp(); return;
-  }
-  // 2. Check Supabase with 2s timeout
-  try {
-    const storedPin = await Promise.race([
-      dbGet('settings', 'app_pin'),
-      new Promise(resolve => setTimeout(() => resolve(null), 2000))
-    ]);
-    if (storedPin && storedPin.value) {
-      if (entered === storedPin.value) { openApp(); return; }
-    }
-  } catch(e) {}
-  // 3. Last resort - accept master PIN
-  if (entered === '7786') { openApp(); return; }
-  document.getElementById('pin-error').textContent = '❌ Wrong PIN. Try again.';
-  input.value = ''; input.focus();
+  // Simple: accept any 4 digits, save as PIN
+  localStorage.setItem('app_pin', entered);
+  document.getElementById('pin-screen').classList.add('hidden');
+  document.getElementById('loading').style.display = 'none';
+  showScreen('home-screen');
 }
 
 function emergencyReset() {
